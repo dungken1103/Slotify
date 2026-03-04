@@ -1,7 +1,7 @@
 import { Film, UserCircle, LogOut, Settings, Menu } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
-import { useAuthStore } from "../../store/useAuthStore";
+import { useAuthStore } from "../../middlewares/useAuthStore";
 import { AuthService } from "../../services/auth.service";
 import {
   DropdownMenu,

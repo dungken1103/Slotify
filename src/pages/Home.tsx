@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { MovieCard, type Movie } from "../components/ui/MovieCard";
 import { Play } from "lucide-react";
-import { movieService } from "../services/movieService";
+import { movieService } from "../services/movie.service";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
 export function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -23,17 +24,17 @@ export function HomePage() {
       typeof movie.genre === "string"
         ? movie.genre.split(",").map((g: string) => g.trim())
         : Array.isArray(movie.genre)
-        ? movie.genre
-        : [],
+          ? movie.genre
+          : [],
     duration: movie.duration ?? "",
     releaseDate: movie.releaseDate,
   });
 
   const fetchMovies = async () => {
     try {
-      const data = await movieService.getAllMovies();
+      const data = await movieService.getAllMovies(true);
 
-      const normalizedMovies = data.map(normalizeMovie);
+      const normalizedMovies = (data || []).map(normalizeMovie);
 
       setMovies(normalizedMovies);
 
@@ -48,7 +49,11 @@ export function HomePage() {
   };
 
   if (loading) {
-    return <div className="p-20 text-center text-xl">Loading movies...</div>;
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <LoadingSpinner size={48} />
+      </div>
+    );
   }
 
   if (!featuredMovie) {

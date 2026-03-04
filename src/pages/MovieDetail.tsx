@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Star, Clock, Calendar, ChevronLeft, Building2 } from "lucide-react";
-import { movieService } from "../services/movieService";
+import { movieService } from "../services/movie.service";
 
 interface MovieDetail {
   id: string;
@@ -40,14 +40,14 @@ export function MovieDetailPage() {
       typeof data.cast === "string"
         ? data.cast.split(",").map((c: string) => c.trim())
         : Array.isArray(data.cast)
-        ? data.cast
-        : [],
+          ? data.cast
+          : [],
     genres:
       typeof data.genre === "string"
         ? data.genre.split(",").map((g: string) => g.trim())
         : Array.isArray(data.genre)
-        ? data.genre
-        : [],
+          ? data.genre
+          : [],
   });
 
   const fetchMovie = async (movieId: string) => {

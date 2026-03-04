@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthService } from "@/services/auth.service";
-import { useAuthStore } from "@/store/useAuthStore";
+import { UploadService } from "@/services/upload.service";
+import { useAuthStore } from "@/middlewares/useAuthStore";
 import { updateProfileSchema, changePasswordSchema } from "@/types/auth";
 import type { UpdateProfileFormData, ChangePasswordFormData } from "@/types/auth";
 import { Loader2, Camera, User, Key, Save } from "lucide-react";
@@ -119,7 +120,7 @@ export function ProfilePage() {
         setProfileMsg({ type: "", text: "" });
 
         try {
-            const response = await AuthService.uploadImage(file);
+            const response = await UploadService.uploadImage(file);
             if (response.succeeded && response.data) {
                 // Automatically save the new avatar url by calling updateProfile
                 if (user) {

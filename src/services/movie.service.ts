@@ -1,16 +1,12 @@
 import axios from "axios";
 import type { MovieResponse } from "../types/movie";
+import type { ApiResponse } from "../types/api";
 
 const API_URL = `${import.meta.env.VITE_API_BASE_URL}/Movie`;
 
-export interface ApiResponse<T> {
-  data: T;
-  message: string;
-}
-
 export const movieService = {
-  async getAllMovies() {
-    const res = await axios.get<ApiResponse<MovieResponse[]>>(API_URL);
+  async getAllMovies(activeOnly: boolean = false) {
+    const res = await axios.get<ApiResponse<MovieResponse[]>>(`${API_URL}?activeOnly=${activeOnly}`);
     return res.data.data;
   },
 

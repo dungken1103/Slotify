@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api } from '../middlewares/interceptors';
 import type { ApiResponse } from '../types/api';
 import type {
     LoginFormData,
@@ -62,23 +62,6 @@ export const AuthService = {
     resetPassword: async (data: ResetPasswordFormData & { token: string }): Promise<ApiResponse<void>> => {
         const { confirmPassword, ...resetRequest } = data;
         const response = await api.post<ApiResponse<void>>('/Auth/reset-password', resetRequest);
-        return response.data;
-    },
-
-    // Upload
-    uploadImage: async (file: File): Promise<ApiResponse<string>> => {
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await api.post<ApiResponse<string>>('/Upload/image', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
-        return response.data;
-    },
-
-    removeImage: async (url: string): Promise<ApiResponse<void>> => {
-        const response = await api.delete<ApiResponse<void>>(`/Upload/image?url=${encodeURIComponent(url)}`);
         return response.data;
     }
 };

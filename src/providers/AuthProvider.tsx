@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuthStore } from "../store/useAuthStore";
+import { useAuthStore } from "../middlewares/useAuthStore";
 import { AuthService } from "../services/auth.service";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
