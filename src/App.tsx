@@ -12,6 +12,16 @@ import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 import { ProfilePage } from "./pages/ProfilePage";
 
+import { AdminRoute } from "./components/guards/AdminRoute";
+import { AdminLayout } from "./layouts/AdminLayout";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminMoviesPage } from "./pages/admin/AdminMoviesPage";
+import { AdminCinemasPage } from "./pages/admin/AdminCinemasPage";
+import { AdminAuditoriumsPage } from "./pages/admin/AdminAuditoriumsPage";
+import { AdminSeatsPage } from "./pages/admin/AdminSeatsPage";
+import { AdminShowtimesPage } from "./pages/admin/AdminShowtimesPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+
 function App() {
   return (
     <AuthProvider>
@@ -33,6 +43,20 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+          </Route>
+
+          {/* Admin Routes */}
+          <Route element={<AdminRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/movies" element={<AdminMoviesPage />} />
+              <Route path="/admin/cinemas" element={<AdminCinemasPage />} />
+              <Route path="/admin/cinemas/:cinemaId/auditoriums" element={<AdminAuditoriumsPage />} />
+              <Route path="/admin/cinemas/:cinemaId/auditoriums/:auditoriumId/seats" element={<AdminSeatsPage />} />
+              <Route path="/admin/showtimes" element={<AdminShowtimesPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              {/* Placeholders for other admin routes */}
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>
