@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { MovieDetailPage } from "./pages/MovieDetail";
 import { BookingPage } from "./pages/BookingPage";
+import { MyBookingsPage } from "./pages/MyBookings";
 
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
@@ -29,14 +30,16 @@ function App() {
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/movies" element={<HomePage />} />
             <Route path="/movie/:id" element={<MovieDetailPage />} />
             {/* Add other main routes here */}
 
             {/* Protected Profile Route Note: Should ideally add a guard component but this works for routing */}
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
           </Route>
 
-          <Route path="/booking/:id" element={<BookingPage />} />
+          <Route path="/booking/:showtimeId" element={<BookingPage />} />
 
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />

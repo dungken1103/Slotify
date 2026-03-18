@@ -1,4 +1,4 @@
-import { Film, UserCircle, LogOut, Settings, Menu } from "lucide-react";
+import { Film, UserCircle, LogOut, Settings, Menu, Ticket } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { useAuthStore } from "../../middlewares/useAuthStore";
@@ -110,6 +110,12 @@ export function Navbar() {
                       <span>Tài khoản</span>
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/my-bookings">
+                      <Ticket className="mr-2 h-4 w-4" />
+                      <span>Lịch sử đặt vé</span>
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-500 focus:text-red-500">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -181,6 +187,12 @@ export function Navbar() {
                       <Link to="/profile">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Tài khoản</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/my-bookings">
+                        <Ticket className="mr-2 h-4 w-4" />
+                        <span>Lịch sử đặt vé</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

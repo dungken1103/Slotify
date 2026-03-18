@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import { MovieCard, type Movie } from "../components/ui/MovieCard";
 import { Play } from "lucide-react";
+import { Link } from "react-router-dom";
 import { movieService } from "../services/movie.service";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 
@@ -92,9 +93,11 @@ export function HomePage() {
             </p>
 
             <div className="flex items-center gap-4 pt-4">
-              <Button size="lg" className="rounded-full px-8 text-base shadow-lg shadow-primary/25 hover:shadow-primary/40">
-                Book Tickets
-              </Button>
+              <Link to={`/movie/${featuredMovie.id}`}>
+                <Button size="lg" className="rounded-full px-8 text-base shadow-lg shadow-primary/25 hover:shadow-primary/40">
+                  Book Tickets
+                </Button>
+              </Link>
               <Button
                 size="lg"
                 variant="outline"
