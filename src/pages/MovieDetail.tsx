@@ -5,6 +5,7 @@ import { movieService } from "../services/movie.service";
 import { ShowtimeService } from "../services/showtime.service";
 import type { Showtime } from "../services/showtime.service";
 import { Button } from "@/components/ui/button";
+import { formatCurrency, getYouTubeEmbedUrl } from "@/lib/utils";
 
 interface MovieDetail {
   id: string;
@@ -18,6 +19,7 @@ interface MovieDetail {
   director: string;
   cast: string[];
   genres: string[];
+  trailerUrl: string;
 }
 
 export function MovieDetailPage() {
@@ -47,6 +49,7 @@ export function MovieDetailPage() {
     title: data.title,
     backdrop: data.backdropUrl || data.posterUrl || "",
     poster: data.posterUrl || "",
+    trailerUrl: data.trailerUrl || "",
     description: data.description || "",
     rating: data.rating ?? 0,
     duration: data.duration ?? "",
@@ -89,19 +92,28 @@ export function MovieDetailPage() {
     <div className="min-h-screen bg-background pb-20">
       {/* Backdrop Header */}
       <div className="relative h-[60vh] w-full overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${movie.backdrop})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-        </div>
+        {movie.trailerUrl && getYouTubeEmbedUrl(movie.trailerUrl) ? (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <iframe
+              src={getYouTubeEmbedUrl(movie.trailerUrl)!}
+              className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[60vh] min-w-[106.66vh] -translate-x-1/2 -translate-y-1/2 opacity-100"
+              allow="autoplay; encrypted-media"
+            />
+          </div>
+        ) : (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${movie.backdrop})` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent opacity-90" />
 
         <div className="container relative h-full flex flex-col justify-end pb-10">
           <Link
             to="/"
             className="absolute top-8 left-4 md:left-8 text-white/80 hover:text-white flex items-center gap-2 transition-colors"
           >
-            <ChevronLeft className="h-6 w-6" /> Back to Home
+            <ChevronLeft className="h-6 w-6" /> Về trang chủ
           </Link>
 
           <div className="flex flex-col md:flex-row gap-8 items-end">
@@ -115,7 +127,7 @@ export function MovieDetailPage() {
                 <Star className="h-5 w-5 fill-current" />
                 <span className="text-xl font-bold">{movie.rating}</span>
                 <span className="text-muted-foreground ml-2 text-sm">
-                  (2.5k reviews)
+                  (2.5k đánh giá)
                 </span>
               </div>
 
@@ -141,7 +153,7 @@ export function MovieDetailPage() {
         {/* Main Content */}
         <div className="space-y-12">
           <section>
-            <h2 className="text-2xl font-bold mb-4">Synopsis</h2>
+            <h2 className="text-2xl font-bold mb-4">Nội dung phim</h2>
             <p className="text-muted-foreground leading-relaxed text-lg">
               {movie.description}
             </p>
@@ -172,12 +184,12 @@ export function MovieDetailPage() {
                         >
                           <div className="flex justify-between items-start mb-2">
                              <span className="font-bold text-lg">{new Date(st.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                             <span className="text-primary font-bold">${st.standardPrice.toFixed(2)}</span>
+                             <span className="text-primary font-bold">{formatCurrency(st.standardPrice)}</span>
                           </div>
                           <div className="flex justify-between items-end text-xs text-muted-foreground">
                             <span>{st.auditoriumName}</span>
                             <span className="flex items-center gap-1 group-hover:text-primary transition-colors">
-                              Book <Ticket className="h-3 w-3" />
+                              Đặt vé <Ticket className="h-3 w-3" />
                             </span>
                           </div>
                         </Link>
@@ -190,18 +202,18 @@ export function MovieDetailPage() {
               <div className="text-center py-12 bg-secondary/10 rounded-2xl border border-dashed border-border/50 flex flex-col items-center gap-4">
                 <Calendar className="h-12 w-12 opacity-20" />
                 <div className="space-y-1">
-                  <p className="font-medium">No showtimes available</p>
-                  <p className="text-sm text-muted-foreground">Check back later for updated schedules.</p>
+                  <p className="font-medium">Chưa có lịch chiếu</p>
+                  <p className="text-sm text-muted-foreground">Vui lòng quay lại sau để xem cập nhật lịch chiếu.</p>
                 </div>
               </div>
             )}
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold mb-4">Cast & Crew</h2>
+            <h2 className="text-2xl font-bold mb-4">Diễn viên & Đoàn làm phim</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="p-4 rounded-lg bg-card border border-border/50">
-                <p className="text-xs text-muted-foreground">Director</p>
+                <p className="text-xs text-muted-foreground">Đạo diễn</p>
                 <p className="font-medium">{movie.director}</p>
               </div>
 
@@ -210,7 +222,7 @@ export function MovieDetailPage() {
                   key={actor}
                   className="p-4 rounded-lg bg-card border border-border/50"
                 >
-                  <p className="text-xs text-muted-foreground">Actor</p>
+                  <p className="text-xs text-muted-foreground">Diễn viên</p>
                   <p className="font-medium">{actor}</p>
                 </div>
               ))}
@@ -221,31 +233,31 @@ export function MovieDetailPage() {
         {/* Sidebar - Now for info & booking summary/cta */}
         <div className="space-y-6">
            <div className="rounded-xl border border-border/50 bg-card p-6 shadow-lg sticky top-24">
-              <h3 className="text-xl font-bold mb-4">Quick Booking</h3>
+              <h3 className="text-xl font-bold mb-4">Đặt vé nhanh</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Select a showtime from the list to start choosing your seats.
+                Chọn lịch chiếu từ danh sách để bắt đầu chọn ghế.
               </p>
               <Button 
                 className="w-full gap-2 py-6 text-lg" 
                 onClick={() => document.getElementById('showtimes')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                View Showtimes
+                Xem lịch chiếu
               </Button>
               
               <div className="mt-8 space-y-4 pt-8 border-t border-border/50 text-sm">
                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rating</span>
+                    <span className="text-muted-foreground">Đánh giá</span>
                     <span className="font-medium text-yellow-500 flex items-center gap-1">
                       <Star className="h-3 w-3 fill-current" /> {movie.rating}
                     </span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration</span>
+                    <span className="text-muted-foreground">Thời lượng</span>
                     <span className="font-medium">{movie.duration}</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Language</span>
-                    <span className="font-medium">English (SUB)</span>
+                    <span className="text-muted-foreground">Ngôn ngữ</span>
+                    <span className="font-medium">Tiếng Anh (Phụ đề)</span>
                  </div>
               </div>
            </div>

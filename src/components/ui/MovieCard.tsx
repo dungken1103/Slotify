@@ -10,6 +10,7 @@ export interface Movie {
   genre: string[];
   duration: string;
   releaseDate: string;
+  trailerUrl?: string;
 }
 
 interface MovieCardProps {
@@ -30,7 +31,7 @@ export function MovieCard({ movie }: MovieCardProps) {
         <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full transition-transform duration-300 group-hover:translate-y-0">
           <Link to={`/movie/${movie.id}`} className="w-full">
             <Button className="w-full bg-primary hover:bg-primary/90">
-              Book Ticket
+              Đặt vé
             </Button>
           </Link>
         </div>

@@ -3,6 +3,7 @@ import { bookingService } from "../services/bookingService";
 import type { BookingResponse } from "../types/booking";
 import { Calendar, Clock, MapPin, Ticket, Loader2, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatCurrency } from "@/lib/utils";
 
 export function MyBookingsPage() {
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
@@ -33,7 +34,7 @@ export function MyBookingsPage() {
 
   return (
     <div className="container py-12 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">My Bookings</h1>
+      <h1 className="text-3xl font-bold mb-8">Vé của tôi</h1>
 
       {bookings.length > 0 ? (
         <div className="space-y-6">
@@ -48,14 +49,14 @@ export function MyBookingsPage() {
                         booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' : 
                         'bg-red-500/10 text-red-500'
                       }`}>
-                        {booking.status}
+                        {booking.status === 'Confirmed' ? 'Đã xác nhận' : booking.status === 'Pending' ? 'Đang chờ' : booking.status}
                       </span>
                       <span className="text-xs text-muted-foreground">ID: {booking.id.split('-')[0]}</span>
                     </div>
                     <h2 className="text-xl font-bold">{booking.movieTitle}</h2>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black text-primary">${booking.totalAmount.toFixed(2)}</p>
+                    <p className="text-2xl font-black text-primary">{formatCurrency(booking.totalAmount)}</p>
                     <p className="text-xs text-muted-foreground">{new Date(booking.bookingDate).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -66,7 +67,7 @@ export function MyBookingsPage() {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Date</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Ngày chiếu</p>
                       <p className="text-sm font-medium">{new Date(booking.startTime).toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -75,7 +76,7 @@ export function MyBookingsPage() {
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Time</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Giờ chiếu</p>
                       <p className="text-sm font-medium">{new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
@@ -84,7 +85,7 @@ export function MyBookingsPage() {
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Location</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Rạp</p>
                       <p className="text-sm font-medium">{booking.cinemaName} • {booking.auditoriumName}</p>
                     </div>
                   </div>
@@ -106,10 +107,10 @@ export function MyBookingsPage() {
       ) : (
         <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border flex flex-col items-center">
           <Ticket className="h-16 w-16 mb-4 opacity-10" />
-          <h3 className="text-xl font-bold mb-2">No bookings yet</h3>
-          <p className="text-muted-foreground mb-8">You haven't made any movie bookings yet.</p>
+          <h3 className="text-xl font-bold mb-2">Chưa có vé nào</h3>
+          <p className="text-muted-foreground mb-8">Bạn chưa đặt bất kỳ vé xem phim nào.</p>
           <Link to="/" className="text-primary hover:underline flex items-center gap-1 font-medium">
-            Explore movies <ChevronRight className="h-4 w-4" />
+            Khám phá phim <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       )}

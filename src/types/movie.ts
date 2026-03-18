@@ -7,5 +7,6 @@ export interface MovieResponse {
   releaseDate: string;
   posterUrl: string;
   backdropUrl: string;
+  trailerUrl: string;
   rating: number;
 }

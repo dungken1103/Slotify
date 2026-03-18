@@ -5,6 +5,7 @@ import { Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { movieService } from "../services/movie.service";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { getYouTubeEmbedUrl } from "../lib/utils";
 
 export function HomePage() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -29,6 +30,7 @@ export function HomePage() {
           : [],
     duration: movie.duration ?? "",
     releaseDate: movie.releaseDate,
+    trailerUrl: movie.trailerUrl || "",
   });
 
   const fetchMovies = async () => {
@@ -58,33 +60,42 @@ export function HomePage() {
   }
 
   if (!featuredMovie) {
-    return <div className="p-20 text-center text-xl">No movies found</div>;
+    return <div className="p-20 text-center text-xl">Không tìm thấy phim nào</div>;
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       {/* Hero Section */}
-      <section className="relative h-[80vh] w-full overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${featuredMovie.poster})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
-        </div>
+      <section className="relative h-[80vh] w-full overflow-hidden bg-background">
+        {featuredMovie.trailerUrl && getYouTubeEmbedUrl(featuredMovie.trailerUrl) ? (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <iframe
+              src={getYouTubeEmbedUrl(featuredMovie.trailerUrl)!}
+              className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[80vh] min-w-[142.22vh] -translate-x-1/2 -translate-y-1/2 opacity-100"
+              allow="autoplay; encrypted-media"
+            />
+          </div>
+        ) : (
+          <div
+            className="absolute inset-0 bg-cover bg-center blur-xl opacity-40 scale-105"
+            style={{ backgroundImage: `url(${featuredMovie.poster})` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/20 to-transparent opacity-80 hidden md:block" />
 
-        <div className="container relative flex h-full items-end pb-20">
-          <div className="max-w-2xl space-y-6">
+        <div className="container relative flex h-full items-center md:items-end justify-between pb-10 md:pb-20 pt-20 gap-8">
+          <div className="max-w-2xl space-y-6 z-10 flex-1">
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary border border-primary/20">
-                Now Showing
+              <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary border border-primary/20 backdrop-blur-md">
+                Đang chiếu
               </span>
-              <span className="text-secondary-foreground/80 text-sm font-medium">
+              <span className="text-secondary-foreground/90 text-sm font-medium">
                 {featuredMovie.genre.join(" • ")}
               </span>
             </div>
 
-            <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
+            <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl drop-shadow-lg">
               {featuredMovie.title}
             </h1>
 
@@ -95,7 +106,7 @@ export function HomePage() {
             <div className="flex items-center gap-4 pt-4">
               <Link to={`/movie/${featuredMovie.id}`}>
                 <Button size="lg" className="rounded-full px-8 text-base shadow-lg shadow-primary/25 hover:shadow-primary/40">
-                  Book Tickets
+                  Đặt vé
                 </Button>
               </Link>
               <Button
@@ -103,8 +114,18 @@ export function HomePage() {
                 variant="outline"
                 className="rounded-full gap-2 px-6 backdrop-blur-sm bg-black/10 border-white/10 hover:bg-white/10"
               >
-                <Play className="h-4 w-4 fill-current" /> Watch Trailer
+                <Play className="h-4 w-4 fill-current" /> Xem Trailer
               </Button>
+            </div>
+          </div>
+          
+          <div className="hidden md:block w-1/3 max-w-[320px] shrink-0 z-10 self-end">
+            <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">
+              <img
+                src={featuredMovie.poster}
+                alt={featuredMovie.title}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
             </div>
           </div>
         </div>
@@ -113,9 +134,9 @@ export function HomePage() {
       {/* Movies Grid */}
       <section className="container py-16 space-y-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Now Showing</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Đang chiếu</h2>
           <Button variant="link" className="text-primary">
-            View all
+            Xem tất cả
           </Button>
         </div>
 
