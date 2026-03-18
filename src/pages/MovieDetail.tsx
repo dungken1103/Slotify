@@ -52,7 +52,7 @@ export function MovieDetailPage() {
     trailerUrl: data.trailerUrl || "",
     description: data.description || "",
     rating: data.rating ?? 0,
-    duration: data.duration ?? "",
+    duration: data.durationMinutes ? `${data.durationMinutes} phút` : "",
     releaseDate: data.releaseDate ?? "",
     director: data.director ?? "",
     cast:
@@ -142,7 +142,13 @@ export function MovieDetailPage() {
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" /> {movie.releaseDate}
                 </span>
-                <span>{movie.genres.join(", ")}</span>
+                <div className="flex flex-wrap gap-2">
+                  {movie.genres.map((g, i) => (
+                     <span key={i} className="px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 rounded-full text-xs font-medium">
+                       {g}
+                     </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -154,9 +160,10 @@ export function MovieDetailPage() {
         <div className="space-y-12">
           <section>
             <h2 className="text-2xl font-bold mb-4">Nội dung phim</h2>
-            <p className="text-muted-foreground leading-relaxed text-lg">
-              {movie.description}
-            </p>
+            <div 
+              className="text-muted-foreground leading-relaxed text-lg [&>p]:mb-4 [&>ul]:list-disc [&>ul]:ml-6 [&>ol]:list-decimal [&>ol]:ml-6 [&_a]:text-primary hover:[&_a]:underline [&>h1]:text-2xl [&>h1]:font-bold [&>h2]:text-xl [&>h2]:font-bold [&>h3]:text-lg [&>h3]:font-bold"
+              dangerouslySetInnerHTML={{ __html: movie.description }}
+            />
           </section>
 
           {/* Showtimes Section - Now MORE prominent */}
@@ -213,8 +220,14 @@ export function MovieDetailPage() {
             <h2 className="text-2xl font-bold mb-4">Diễn viên & Đoàn làm phim</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="p-4 rounded-lg bg-card border border-border/50">
-                <p className="text-xs text-muted-foreground">Đạo diễn</p>
-                <p className="font-medium">{movie.director}</p>
+                <p className="text-xs text-muted-foreground mb-2">Đạo diễn</p>
+                <div className="flex flex-wrap gap-1">
+                  {movie.director.split(",").map((d, i) => (
+                    <span key={i} className="px-2 py-1 bg-violet-500/10 text-violet-500 border border-violet-500/20 rounded-md text-xs font-medium whitespace-nowrap">
+                      {d.trim()}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {movie.cast.map((actor: string) => (
@@ -222,8 +235,10 @@ export function MovieDetailPage() {
                   key={actor}
                   className="p-4 rounded-lg bg-card border border-border/50"
                 >
-                  <p className="text-xs text-muted-foreground">Diễn viên</p>
-                  <p className="font-medium">{actor}</p>
+                  <p className="text-xs text-muted-foreground mb-2">Diễn viên</p>
+                  <span className="px-2 py-1 bg-secondary/50 text-secondary-foreground border border-white/5 rounded-md text-xs whitespace-nowrap block w-fit">
+                    {actor.trim()}
+                  </span>
                 </div>
               ))}
             </div>

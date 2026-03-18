@@ -28,7 +28,7 @@ export function HomePage() {
         : Array.isArray(movie.genre)
           ? movie.genre
           : [],
-    duration: movie.duration ?? "",
+    duration: movie.durationMinutes ? `${movie.durationMinutes} phút` : "",
     releaseDate: movie.releaseDate,
     trailerUrl: movie.trailerUrl || "",
   });

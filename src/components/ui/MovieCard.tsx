@@ -52,13 +52,15 @@ export function MovieCard({ movie }: MovieCardProps) {
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 shrink-0">
             <Clock className="h-3 w-3" /> {movie.duration}
           </span>
-          <span>•</span>
-          <span className="line-clamp-1">
-            {Array.isArray(movie.genre) ? movie.genre.join(", ") : ""}
-          </span>
+          <div className="flex gap-1 flex-wrap overflow-hidden h-[20px] justify-end flex-1">
+            {Array.isArray(movie.genre) && movie.genre.slice(0, 2).map((g, i) => (
+               <span key={i} className="px-1.5 py-0.5 rounded-full bg-secondary/50 text-secondary-foreground border border-white/10 text-[10px] whitespace-nowrap">{g.trim()}</span>
+            ))}
+            {Array.isArray(movie.genre) && movie.genre.length > 2 && <span className="px-1.5 py-0.5 rounded-full bg-secondary/50 text-secondary-foreground border border-white/10 text-[10px]">+{movie.genre.length - 2}</span>}
+          </div>
         </div>
       </div>
     </div>
