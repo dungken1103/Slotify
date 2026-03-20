@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { bookingService } from "../services/bookingService";
 import { ShowtimeService } from "../services/showtime.service";
 import type { SeatAvailabilityResponse } from "../types/booking";
 import type { Showtime } from "../services/showtime.service";
 import { formatCurrency } from "@/lib/utils";
+import { useAuthStore } from "../middlewares/useAuthStore";
 
 export function BookingPage() {
   const { showtimeId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [showtime, setShowtime] = useState<Showtime | null>(null);
   const [seats, setSeats] = useState<SeatAvailabilityResponse[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
@@ -61,9 +63,8 @@ export function BookingPage() {
         paymentMethod: "SePay"
       });
       
-      if (result.succeeded) {
-        alert("Đặt vé thành công! Đang chuyển hướng đến vé của tôi...");
-        navigate("/my-bookings");
+      if (result.succeeded && result.data) {
+        navigate(`/payment/${result.data.id}`);
       } else {
         alert(result.message || "Đặt vé thất bại");
       }
@@ -121,7 +122,7 @@ export function BookingPage() {
                   className={`
                     h-8 md:h-10 rounded-t-lg transition-all relative flex items-center justify-center text-[10px] group
                     ${seat.type === 'Couple' ? 'col-span-2 w-full' : 'w-8 md:w-10'}
-                    ${!seat.isAvailable ? "bg-white/10 cursor-not-allowed text-transparent" : 
+                    ${!seat.isAvailable ? "bg-white/10 cursor-not-allowed text-muted-foreground" : 
                       isSelected ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(220,38,38,0.5)] transform scale-105" : 
                       seat.type === 'VIP' ? "bg-amber-500/20 text-amber-500 border border-amber-500/50 hover:bg-amber-500/40" :
                       seat.type === 'Couple' ? "bg-pink-500/20 text-pink-500 border border-pink-500/50 hover:bg-pink-500/40" :
@@ -130,7 +131,8 @@ export function BookingPage() {
                   `}
                   title={`${seat.row}${seat.number} - ${seat.type} - ${formatCurrency(seat.price)}`}
                 >
-                  {isSelected ? <Check className="h-4 w-4" /> : 
+                  {!seat.isAvailable ? <X className="h-4 w-4" /> :
+                    isSelected ? <Check className="h-4 w-4" /> : 
                     <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
                       {seat.type === 'Couple' && <span className="text-[8px]">👫</span>}
                       {seat.row}{seat.number}
@@ -212,10 +214,18 @@ export function BookingPage() {
                <Button 
                 className="w-full py-6 text-lg shadow-lg shadow-primary/25" 
                 disabled={selectedSeats.length === 0 || bookingLoading}
-                onClick={handleBooking}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate(`/login?redirect=/booking/${showtimeId}`);
+                  } else {
+                    handleBooking();
+                  }
+                }}
                >
                   {bookingLoading ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Đang xử lý...</>
+                  ) : !isAuthenticated ? (
+                    "Đăng nhập để thanh toán"
                   ) : (
                     "Thanh toán"
                   )}
