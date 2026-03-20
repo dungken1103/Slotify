@@ -70,7 +70,7 @@ export function PaymentPage() {
     );
   }
 
-  const transactionContent = `slotify-ok-${booking.id}`;
+  const transactionContent = `slotifyok${booking.id.replace(/-/g, "")}`;
   const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-${BANK_CONFIG.TEMPLATE}.png?amount=${booking.totalAmount}&addInfo=${transactionContent}&accountName=${BANK_CONFIG.ACCOUNT_NAME}`;
 
   return (
