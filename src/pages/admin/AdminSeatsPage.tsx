@@ -1,51 +1,114 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { SeatService } from "../../services/seat.service";
-import type { Seat } from "../../services/seat.service";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, Loader2, Pencil, Plus, Power, Save, Trash2 } from "lucide-react";
 import { AuditoriumService } from "../../services/auditorium.service";
 import type { Auditorium } from "../../services/auditorium.service";
+import { SeatService, seatTypeToValue, type Seat, type SeatRequest, type SeatType } from "../../services/seat.service";
 import { Button } from "../../components/ui/button";
-import { ArrowLeft, GripHorizontal, Loader2, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { cn } from "../../lib/utils";
+import { adminSelectClassName, fieldErrorClassName, getApiErrorMessage } from "./adminVenueHelpers";
+
+const seatSchema = z.object({
+    row: z.string().trim().min(1, "Hàng ghế là bắt buộc.").max(5, "Hàng ghế tối đa 5 ký tự.").regex(/^[a-zA-Z0-9]+$/, "Hàng ghế chỉ được chứa chữ và số."),
+    number: z.number().int("Số ghế phải là số nguyên.").min(1, "Số ghế phải từ 1 đến 100.").max(100, "Số ghế phải từ 1 đến 100."),
+    type: z.enum(["Standard", "VIP", "Couple"]),
+    isActive: z.boolean(),
+});
+
+const bulkSchema = z.object({
+    rows: z.number().int().min(1, "Số hàng tối thiểu là 1.").max(26, "Tối đa 26 hàng để tạo nhanh."),
+    seatsPerRow: z.number().int().min(1, "Số ghế mỗi hàng tối thiểu là 1.").max(30, "Tối đa 30 ghế mỗi hàng."),
+    type: z.enum(["Standard", "VIP", "Couple"]),
+});
+
+type SeatFormValues = z.infer<typeof seatSchema>;
+type BulkFormValues = z.infer<typeof bulkSchema>;
+
+const seatDefaults: SeatFormValues = {
+    row: "",
+    number: 1,
+    type: "Standard",
+    isActive: true,
+};
+
+const bulkDefaults: BulkFormValues = {
+    rows: 5,
+    seatsPerRow: 10,
+    type: "Standard",
+};
+
+const seatTypeClassMap: Record<SeatType, string> = {
+    Standard: "border-blue-300 bg-blue-100 text-blue-800",
+    VIP: "border-amber-300 bg-amber-100 text-amber-800",
+    Couple: "border-rose-300 bg-rose-100 text-rose-800",
+};
+
+const seatTypeTextMap: Record<SeatType, string> = {
+    Standard: "Standard",
+    VIP: "VIP",
+    Couple: "Couple",
+};
+
+const normalizeRow = (value: string) => value.trim().toUpperCase();
 
 export function AdminSeatsPage() {
-    const { cinemaId, auditoriumId } = useParams<{ cinemaId: string, auditoriumId: string }>();
+    const { cinemaId, auditoriumId } = useParams<{ cinemaId: string; auditoriumId: string }>();
     const navigate = useNavigate();
-
     const [auditorium, setAuditorium] = useState<Auditorium | null>(null);
     const [seats, setSeats] = useState<Seat[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingSeat, setEditingSeat] = useState<Seat | null>(null);
 
-    // Initial config states for generating a map
-    const [rows, setRows] = useState(10);
-    const [seatsPerRow, setSeatsPerRow] = useState(12);
+    const seatForm = useForm<SeatFormValues>({
+        resolver: zodResolver(seatSchema),
+        defaultValues: seatDefaults,
+    });
+
+    const bulkForm = useForm<BulkFormValues>({
+        resolver: zodResolver(bulkSchema),
+        defaultValues: bulkDefaults,
+    });
 
     const fetchData = async () => {
-        if (!auditoriumId) return;
+        if (!auditoriumId) {
+            setError("Thiếu mã phòng chiếu.");
+            setIsLoading(false);
+            return;
+        }
 
         try {
             setIsLoading(true);
-            const [auditoriumRes, seatsRes] = await Promise.all([
+            setError(null);
+            const [auditoriumResponse, seatsResponse] = await Promise.all([
                 AuditoriumService.getById(auditoriumId),
-                SeatService.getByAuditorium(auditoriumId, true)
+                SeatService.getByAuditorium(auditoriumId, true),
             ]);
 
-            if (auditoriumRes.succeeded) {
-                setAuditorium(auditoriumRes.data);
+            if (!auditoriumResponse.succeeded) {
+                setError(auditoriumResponse.message || "Không thể tải thông tin phòng chiếu.");
+                return;
             }
 
-            if (seatsRes.succeeded) {
-                setSeats(seatsRes.data);
-            } else {
-                setError(seatsRes.message || "Không thể tải sơ đồ ghế.");
+            if (!seatsResponse.succeeded) {
+                setError(seatsResponse.message || "Không thể tải danh sách ghế.");
+                return;
             }
+
+            setAuditorium(auditoriumResponse.data ?? null);
+            setSeats(seatsResponse.data ?? []);
         } catch (err) {
-            setError("Đã xảy ra lỗi kết nối khi tải sơ đồ.");
-            console.error(err);
+            setError(getApiErrorMessage(err, "Đã xảy ra lỗi khi tải danh sách ghế."));
         } finally {
             setIsLoading(false);
         }
@@ -55,251 +118,360 @@ export function AdminSeatsPage() {
         fetchData();
     }, [auditoriumId]);
 
-    const handleGenerateMap = () => {
-        if (!window.confirm(`Bạn có chắc muốn tạo sơ đồ mới với ${rows} hàng và ${seatsPerRow} ghế mỗi hàng? Sơ đồ hiện tại (nếu chưa lưu) sẽ bị ghi đè trên màn hình này.`)) {
+    const groupedSeats = useMemo(() => {
+        const map = new Map<string, Seat[]>();
+        for (const seat of seats) {
+            const row = normalizeRow(seat.row);
+            const current = map.get(row) ?? [];
+            current.push({ ...seat, row });
+            map.set(row, current);
+        }
+
+        return Array.from(map.entries())
+            .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+            .map(([row, rowSeats]) => ({
+                row,
+                seats: rowSeats.sort((a, b) => a.number - b.number),
+            }));
+    }, [seats]);
+
+    const handleOpenDialog = (seat?: Seat) => {
+        setError(null);
+        setEditingSeat(seat ?? null);
+        seatForm.reset(
+            seat
+                ? {
+                    row: seat.row,
+                    number: seat.number,
+                    type: seat.type,
+                    isActive: seat.isActive,
+                }
+                : seatDefaults
+        );
+        setIsDialogOpen(true);
+    };
+
+    const ensureSeatIsUniqueOnClient = (values: SeatFormValues) => {
+        const row = normalizeRow(values.row);
+        const duplicate = seats.find((seat) =>
+            seat.id !== editingSeat?.id &&
+            normalizeRow(seat.row) === row &&
+            seat.number === values.number
+        );
+
+        if (duplicate) {
+            seatForm.setError("row", { message: `Ghế ${row}${values.number} đã tồn tại.` });
+            seatForm.setError("number", { message: `Ghế ${row}${values.number} đã tồn tại.` });
+            return false;
+        }
+
+        return true;
+    };
+
+    const onSubmitSeat = seatForm.handleSubmit(async (values) => {
+        if (!auditoriumId) {
+            setError("Thiếu mã phòng chiếu.");
             return;
         }
 
-        const newSeats: Seat[] = [];
-        const generateLetter = (index: number) => String.fromCharCode(65 + index); // 0 -> A, 1 -> B...
+        if (!ensureSeatIsUniqueOnClient(values)) {
+            return;
+        }
 
-        for (let r = 0; r < rows; r++) {
-            const rowLabel = generateLetter(r);
-            for (let c = 1; c <= seatsPerRow; c++) {
-                newSeats.push({
-                    id: Math.random().toString(36).substring(7), // Temp ID for rendering
-                    row: rowLabel,
-                    number: c,
-                    type: "Standard",
-                    auditoriumId: auditoriumId!,
+        try {
+            setIsSubmitting(true);
+            setError(null);
+
+            const payload: SeatRequest = {
+                row: normalizeRow(values.row),
+                number: values.number,
+                type: seatTypeToValue[values.type],
+                auditoriumId,
+                isActive: values.isActive,
+            };
+
+            const response = editingSeat
+                ? await SeatService.update(editingSeat.id, payload)
+                : await SeatService.create(payload);
+
+            if (!response.succeeded) {
+                setError(response.message || "Không thể lưu thông tin ghế.");
+                return;
+            }
+
+            setIsDialogOpen(false);
+            await fetchData();
+        } catch (err) {
+            setError(getApiErrorMessage(err, "Đã xảy ra lỗi khi lưu thông tin ghế."));
+        } finally {
+            setIsSubmitting(false);
+        }
+    });
+
+    const handleDeleteSeat = async (seat: Seat) => {
+        if (!window.confirm(`Xóa ghế ${seat.row}${seat.number}? Hành động này không thể hoàn tác.`)) {
+            return;
+        }
+
+        try {
+            setError(null);
+            const response = await SeatService.delete(seat.id);
+            if (!response.succeeded) {
+                setError(response.message || "Không thể xóa ghế.");
+                return;
+            }
+
+            await fetchData();
+        } catch (err) {
+            setError(getApiErrorMessage(err, "Không thể xóa ghế."));
+        }
+    };
+
+    const toggleSeatStatus = async (seat: Seat) => {
+        try {
+            setError(null);
+            const response = seat.isActive
+                ? await SeatService.deactivate(seat.id)
+                : await SeatService.activate(seat.id);
+
+            if (!response.succeeded) {
+                setError(response.message || "Không thể cập nhật trạng thái ghế.");
+                return;
+            }
+
+            await fetchData();
+        } catch (err) {
+            setError(getApiErrorMessage(err, "Không thể cập nhật trạng thái ghế."));
+        }
+    };
+
+    const onBulkCreate = bulkForm.handleSubmit(async (values) => {
+        if (!auditoriumId) {
+            setError("Thiếu mã phòng chiếu.");
+            return;
+        }
+
+        const generatedSeats: SeatRequest[] = [];
+        const duplicateLabels: string[] = [];
+
+        for (let rowIndex = 0; rowIndex < values.rows; rowIndex += 1) {
+            const row = String.fromCharCode(65 + rowIndex);
+            for (let seatNumber = 1; seatNumber <= values.seatsPerRow; seatNumber += 1) {
+                const exists = seats.some((seat) => normalizeRow(seat.row) === row && seat.number === seatNumber);
+                if (exists) {
+                    duplicateLabels.push(`${row}${seatNumber}`);
+                    continue;
+                }
+
+                generatedSeats.push({
+                    row,
+                    number: seatNumber,
+                    type: seatTypeToValue[values.type],
+                    auditoriumId,
                     isActive: true,
-                    seatName: `${rowLabel}${c}`
                 });
             }
         }
-        setSeats(newSeats);
-    };
 
-    const handleSaveBulk = async () => {
-        if (!auditoriumId) return;
+        if (generatedSeats.length === 0) {
+            setError(duplicateLabels.length > 0 ? `Không có ghế mới để tạo. Các ghế đã tồn tại: ${duplicateLabels.slice(0, 10).join(", ")}${duplicateLabels.length > 10 ? "..." : ""}.` : "Không có ghế mới để tạo.");
+            return;
+        }
 
         try {
-            setIsSaving(true);
-
-            // Format requests for the backend
-            const requests = seats.map(s => ({
-                row: s.row,
-                number: s.number,
-                type: s.type === "VIP" ? 1 : (s.type === "Couple" ? 2 : 0),
-                auditoriumId: auditoriumId,
-                isActive: s.isActive
-            }));
-
-            // Since it's a massive overwrite, typically you'd clear existing then add all, 
-            // or the backend bulk endpoint handles that logic. For safety, this assumes
-            // AddSeatsBulk will process these as entirely new rows/seats for the room.
-            const res = await SeatService.createBulk(requests);
-
-            if (res.succeeded) {
-                alert("Đã lưu sơ đồ ghế thành công!");
-                fetchData();
-            } else {
-                setError(res.message || "Lưu thất bại.");
+            setIsBulkSubmitting(true);
+            setError(null);
+            const response = await SeatService.createBulk(generatedSeats);
+            if (!response.succeeded) {
+                setError(response.message || "Không thể tạo loạt ghế.");
+                return;
             }
+
+            bulkForm.reset({ ...values });
+            await fetchData();
         } catch (err) {
-            console.error(err);
-            setError("Xảy ra lỗi khi gọi server lưu dữ liệu.");
+            setError(getApiErrorMessage(err, "Đã xảy ra lỗi khi tạo loạt ghế."));
         } finally {
-            setIsSaving(false);
+            setIsBulkSubmitting(false);
         }
-    };
-
-    const toggleSeatType = (seatId: string) => {
-        setSeats(prev => prev.map(s => {
-            if (s.id === seatId) {
-                let nextType = "Standard";
-                if (s.type === "Standard") nextType = "VIP";
-                else if (s.type === "VIP") nextType = "Couple";
-                else if (s.type === "Couple") nextType = "Standard";
-
-                return { ...s, type: nextType };
-            }
-            return s;
-        }));
-    };
-
-    const toggleSeatActive = (seatId: string) => {
-        setSeats(prev => prev.map(s => {
-            if (s.id === seatId) {
-                return { ...s, isActive: !s.isActive };
-            }
-            return s;
-        }));
-    };
-
-    // Group seats by row for rendering
-    const rowsMap = seats.reduce((acc, seat) => {
-        if (!acc[seat.row]) acc[seat.row] = [];
-        acc[seat.row].push(seat);
-        return acc;
-    }, {} as Record<string, Seat[]>);
-
-    const sortedRowLabels = Object.keys(rowsMap).sort();
+    });
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
                     <Button variant="outline" size="icon" onClick={() => navigate(`/admin/cinemas/${cinemaId}/auditoriums`)}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">
-                            Sơ Đồ Ghế - {auditorium?.name || "Đang tải..."}
-                        </h2>
-                        <p className="text-muted-foreground mt-1">
-                            Click vào ghế để đổi loại (Standard ➔ VIP ➔ Couple). Nhấp đúp (Double-click) để Tắt/Mở ghế.
-                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">Quản Lý Ghế {auditorium ? `- ${auditorium.name}` : ""}</h2>
+                        <p className="mt-1 text-muted-foreground">CRUD ghế theo từng phòng, kèm tạo nhanh theo hàng/cột.</p>
                     </div>
                 </div>
-
-                {seats.length > 0 && (
-                    <Button
-                        onClick={handleSaveBulk}
-                        disabled={isSaving}
-                        className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Lưu Sơ Đồ Lên Máy Chủ
-                    </Button>
-                )}
+                <Button className="gap-2 shadow-md hover:shadow-lg transition-all" onClick={() => handleOpenDialog()}>
+                    <Plus className="h-4 w-4" />
+                    Thêm Ghế
+                </Button>
             </div>
 
-            {error && (
-                <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20">
-                    {error}
-                </div>
-            )}
+            {error && <div className="rounded-md border border-destructive/20 bg-destructive/15 p-4 text-destructive">{error}</div>}
 
-            <div className="grid md:grid-cols-4 gap-6">
-                <Card className="md:col-span-1 shadow-sm h-fit">
-                    <CardHeader className="pb-3 border-b">
-                        <CardTitle className="text-base">Tiện ích tạo nhanh</CardTitle>
+            <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+                <Card className="h-fit shadow-sm">
+                    <CardHeader className="border-b pb-3">
+                        <CardTitle className="text-base">Tạo Nhanh Sơ Đồ Ghế</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4 space-y-4">
-                        <div className="space-y-2">
-                            <Label>Số lượng hàng (Rows)</Label>
-                            <Input
-                                type="number"
-                                min={1} max={26}
-                                value={rows}
-                                onChange={e => setRows(Number(e.target.value))}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Số ghế một hàng (Columns)</Label>
-                            <Input
-                                type="number"
-                                min={1} max={50}
-                                value={seatsPerRow}
-                                onChange={e => setSeatsPerRow(Number(e.target.value))}
-                            />
-                        </div>
-                        <Button
-                            className="w-full gap-2"
-                            variant="secondary"
-                            onClick={handleGenerateMap}
-                        >
-                            <GripHorizontal className="h-4 w-4" /> Tạo Mới Sơ Đồ Mẫu
-                        </Button>
-
-                        <div className="pt-6 border-t mt-6">
-                            <h4 className="text-sm font-semibold mb-3">Chú giải (Legend)</h4>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded bg-blue-100 border border-blue-300"></div>
-                                    <span>Standard (Tiêu chuẩn)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded bg-amber-100 border border-amber-300"></div>
-                                    <span>VIP</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-6 rounded bg-rose-100 border border-rose-300"></div>
-                                    <span>Couple (Ghế đôi)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded bg-gray-100 border border-gray-300 opacity-50"></div>
-                                    <span>Vô hiệu hóa (Đường đi/Trống)</span>
-                                </div>
+                    <CardContent className="space-y-4 pt-4">
+                        <form onSubmit={onBulkCreate} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="rows">Số hàng</Label>
+                                <Input id="rows" type="number" min={1} max={26} {...bulkForm.register("rows", { valueAsNumber: true })} className={cn(bulkForm.formState.errors.rows && fieldErrorClassName)} />
+                                {bulkForm.formState.errors.rows && <p className="text-sm text-destructive">{bulkForm.formState.errors.rows.message}</p>}
                             </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="seatsPerRow">Số ghế mỗi hàng</Label>
+                                <Input id="seatsPerRow" type="number" min={1} max={30} {...bulkForm.register("seatsPerRow", { valueAsNumber: true })} className={cn(bulkForm.formState.errors.seatsPerRow && fieldErrorClassName)} />
+                                {bulkForm.formState.errors.seatsPerRow && <p className="text-sm text-destructive">{bulkForm.formState.errors.seatsPerRow.message}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="bulkType">Loại ghế mặc định</Label>
+                                <select id="bulkType" {...bulkForm.register("type")} className={adminSelectClassName}>
+                                    <option value="Standard">Standard</option>
+                                    <option value="VIP">VIP</option>
+                                    <option value="Couple">Couple</option>
+                                </select>
+                            </div>
+
+                            <Button type="submit" className="w-full gap-2" disabled={isBulkSubmitting}>
+                                {isBulkSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Tạo Loạt Ghế
+                            </Button>
+                        </form>
+
+                        <div className="space-y-2 border-t pt-4 text-sm text-muted-foreground">
+                            <p>Tạo nhanh sẽ chỉ thêm ghế mới còn thiếu.</p>
+                            <p>Ghế trùng hàng/số với dữ liệu hiện có sẽ bị bỏ qua từ phía client và vẫn được backend kiểm tra lại.</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="md:col-span-3 shadow-sm bg-card/50 overflow-x-auto">
-                    <CardContent className="p-8 min-w-max">
+                <Card className="shadow-sm">
+                    <CardHeader className="border-b pb-3">
+                        <CardTitle className="text-base">Danh Sách Ghế</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-4">
                         {isLoading ? (
                             <div className="flex justify-center p-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
-                        ) : seats.length === 0 ? (
-                            <div className="text-center py-24 text-muted-foreground border-2 border-dashed rounded-xl bg-card">
-                                Chưa có sơ đồ ghế nào cho phòng chiếu này. Hãy sử dụng công cụ tạo nhanh ở cột bên trái.
+                        ) : groupedSeats.length === 0 ? (
+                            <div className="rounded-xl border-2 border-dashed bg-card p-12 text-center text-muted-foreground">
+                                Chưa có ghế nào trong phòng này. Hãy thêm từng ghế hoặc tạo nhanh theo sơ đồ.
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center gap-4">
-                                {/* Screen Representation */}
-                                <div className="w-[80%] h-8 bg-gradient-to-b from-primary/20 to-transparent rounded-t-full border-t-4 border-primary/50 relative mb-8 flex items-center justify-center">
-                                    <span className="text-xs text-primary/70 font-semibold tracking-widest absolute top-1">
-                                        MÀN HÌNH
-                                    </span>
-                                </div>
-
-                                {/* Seats Map */}
-                                <div className="flex flex-col gap-2">
-                                    {sortedRowLabels.map(rowLabel => (
-                                        <div key={rowLabel} className="flex items-center justify-center gap-4">
-                                            <div className="w-6 text-center font-bold text-muted-foreground">{rowLabel}</div>
-                                            <div className="flex gap-2 justify-center">
-                                                {rowsMap[rowLabel].sort((a, b) => a.number - b.number).map(seat => {
-                                                    // Styling based on type and status
-                                                    let bgColor = "bg-blue-100 hover:bg-blue-200 border-blue-300 text-blue-800";
-                                                    let width = "w-8";
-
-                                                    if (seat.type === "VIP") {
-                                                        bgColor = "bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-800";
-                                                    } else if (seat.type === "Couple") {
-                                                        bgColor = "bg-rose-100 hover:bg-rose-200 border-rose-300 text-rose-800";
-                                                        width = "w-14";
-                                                    }
-
-                                                    if (!seat.isActive) {
-                                                        bgColor = "bg-gray-100 border-gray-300 text-gray-400 border-dashed opacity-50";
-                                                    }
-
-                                                    return (
-                                                        <button
-                                                            key={seat.id}
-                                                            onClick={() => toggleSeatType(seat.id)}
-                                                            onDoubleClick={() => toggleSeatActive(seat.id)}
-                                                            className={`h-8 ${width} rounded-t-lg rounded-b-sm border text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer select-none ${bgColor}`}
-                                                            title={`Ghế ${seat.seatName || (seat.row + seat.number)} - Nhấp đúp để đổi trạng thái`}
-                                                        >
-                                                            {seat.isActive ? seat.number : "X"}
-                                                        </button>
-                                                    );
-                                                })}
+                            <>
+                                <div className="space-y-4">
+                                    {groupedSeats.map((group) => (
+                                        <div key={group.row} className="space-y-2">
+                                            <div className="text-sm font-semibold text-muted-foreground">Hàng {group.row}</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {group.seats.map((seat) => (
+                                                    <div key={seat.id} className={cn("min-w-[88px] rounded-lg border px-3 py-2 text-sm shadow-sm", seatTypeClassMap[seat.type], !seat.isActive && "border-dashed bg-muted text-muted-foreground opacity-70")}>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div>
+                                                                <div className="font-semibold">{seat.row}{seat.number}</div>
+                                                                <div className="text-xs">{seatTypeTextMap[seat.type]}</div>
+                                                            </div>
+                                                            <div className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", seat.isActive ? "bg-white/70 text-foreground" : "bg-muted-foreground/20 text-muted-foreground")}>
+                                                                {seat.isActive ? "ON" : "OFF"}
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-2 flex justify-end gap-1">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDialog(seat)} title={`Sửa ghế ${seat.row}${seat.number}`}>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className={cn("h-7 w-7", seat.isActive ? "text-amber-600" : "text-green-600")} onClick={() => toggleSeatStatus(seat)} title={seat.isActive ? "Vô hiệu hóa ghế" : "Kích hoạt ghế"}>
+                                                                <Power className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteSeat(seat)} title={`Xóa ghế ${seat.row}${seat.number}`}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className="w-6 text-center font-bold text-muted-foreground">{rowLabel}</div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+
+                                <div className="grid gap-3 border-t pt-4 text-sm text-muted-foreground md:grid-cols-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-4 w-4 rounded border border-blue-300 bg-blue-100" />
+                                        Standard
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-4 w-4 rounded border border-amber-300 bg-amber-100" />
+                                        VIP
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-4 w-4 rounded border border-rose-300 bg-rose-100" />
+                                        Couple
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>{editingSeat ? "Cập Nhật Ghế" : "Thêm Ghế Mới"}</DialogTitle>
+                        <DialogDescription>{editingSeat ? "Chỉnh sửa hàng, số, loại và trạng thái ghế." : "Tạo mới một ghế cho phòng đang chọn."}</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={onSubmitSeat} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="row">Hàng ghế</Label>
+                                <Input id="row" maxLength={5} {...seatForm.register("row")} className={cn(seatForm.formState.errors.row && fieldErrorClassName)} placeholder="A" />
+                                {seatForm.formState.errors.row && <p className="text-sm text-destructive">{seatForm.formState.errors.row.message}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="number">Số ghế</Label>
+                                <Input id="number" type="number" min={1} max={100} {...seatForm.register("number", { valueAsNumber: true })} className={cn(seatForm.formState.errors.number && fieldErrorClassName)} />
+                                {seatForm.formState.errors.number && <p className="text-sm text-destructive">{seatForm.formState.errors.number.message}</p>}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="type">Loại ghế</Label>
+                            <select id="type" {...seatForm.register("type")} className={adminSelectClassName}>
+                                <option value="Standard">Standard</option>
+                                <option value="VIP">VIP</option>
+                                <option value="Couple">Couple</option>
+                            </select>
+                        </div>
+
+                        <label className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
+                            <input type="checkbox" className="h-4 w-4" {...seatForm.register("isActive")} />
+                            <span className="text-sm">Ghế đang hoạt động</span>
+                        </label>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                Hủy
+                            </Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {editingSeat ? "Lưu thay đổi" : "Tạo mới"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

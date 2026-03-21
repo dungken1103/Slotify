@@ -57,9 +57,9 @@ export function AdminShowtimesPage() {
                 CinemaService.getAll(false) // Only active cinemas
             ]);
 
-            if (showtimesRes.succeeded) setShowtimes(showtimesRes.data);
+            if (showtimesRes.succeeded) setShowtimes(showtimesRes.data ?? []);
             if (moviesRes) setMovies(moviesRes as unknown as Movie[]);
-            if (cinemasRes.succeeded) setCinemas(cinemasRes.data);
+            if (cinemasRes.succeeded) setCinemas(cinemasRes.data ?? []);
 
         } catch (err) {
             setError("Đã xảy ra lỗi khi tải dữ liệu");
@@ -83,7 +83,7 @@ export function AdminShowtimesPage() {
             try {
                 const res = await AuditoriumService.getByCinema(selectedCinemaId, false);
                 if (res.succeeded) {
-                    setAuditoriums(res.data);
+                    setAuditoriums(res.data ?? []);
                 }
             } catch (err) {
                 console.error("Lỗi khi tải phòng chiếu", err);
@@ -151,7 +151,7 @@ export function AdminShowtimesPage() {
 
             // Refetch showtimes
             const res = await ShowtimeService.getAll();
-            if (res.succeeded) setShowtimes(res.data);
+            if (res.succeeded) setShowtimes(res.data ?? []);
 
         } catch (err: any) {
             console.error("Lỗi khi lưu lịch chiếu", err);
@@ -168,7 +168,7 @@ export function AdminShowtimesPage() {
                 await ShowtimeService.delete(id);
                 // Refetch
                 const res = await ShowtimeService.getAll();
-                if (res.succeeded) setShowtimes(res.data);
+                if (res.succeeded) setShowtimes(res.data ?? []);
             } catch (err) {
                 console.error("Lỗi khi xóa lịch chiếu", err);
                 alert("Không thể xóa lịch chiếu này.");

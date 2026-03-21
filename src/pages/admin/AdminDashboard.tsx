@@ -20,8 +20,8 @@ export function AdminDashboard() {
 
                 setCounts({
                     movies: moviesRes?.length || 0,
-                    cinemas: cinemasRes.succeeded ? cinemasRes.data.length : 0,
-                    users: usersRes.succeeded ? usersRes.data.length : 0,
+                    cinemas: cinemasRes.succeeded ? (cinemasRes.data?.length ?? 0) : 0,
+                    users: usersRes.succeeded ? (usersRes.data?.length ?? 0) : 0,
                     tickets: 8549 // Still mocked for now until Bookings are implemented
                 });
             } catch (error) {
