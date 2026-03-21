@@ -7,6 +7,8 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
 import { MovieDetailPage } from "./pages/MovieDetail";
 import { BookingPage } from "./pages/BookingPage";
+import { PaymentPage } from "./pages/PaymentPage";
+import { BookingSuccessPage } from "./pages/BookingSuccessPage";
 import { MyBookingsPage } from "./pages/MyBookings";
 
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
@@ -40,6 +42,8 @@ function App() {
           </Route>
 
           <Route path="/booking/:showtimeId" element={<BookingPage />} />
+          <Route path="/payment/:bookingId" element={<PaymentPage />} />
+          <Route path="/booking-success/:bookingId" element={<BookingSuccessPage />} />
 
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
