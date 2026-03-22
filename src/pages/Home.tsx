@@ -21,7 +21,6 @@ export function HomePage() {
     id: movie.id,
     title: movie.title,
     poster: movie.posterUrl || "",
-    rating: movie.rating ?? 0,
     genre:
       typeof movie.genre === "string"
         ? movie.genre.split(",").map((g: string) => g.trim())
@@ -109,13 +108,31 @@ export function HomePage() {
                   Đặt vé
                 </Button>
               </Link>
-              <Button
-                size="lg"
-                variant="outline"
-                className="rounded-full gap-2 px-6 backdrop-blur-sm bg-black/10 border-white/10 hover:bg-white/10"
-              >
-                <Play className="h-4 w-4 fill-current" /> Xem Trailer
-              </Button>
+              {featuredMovie.trailerUrl ? (
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full gap-2 px-6 backdrop-blur-sm bg-black/10 border-white/10 hover:bg-white/10"
+                >
+                  <a
+                    href={featuredMovie.trailerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Play className="h-4 w-4 fill-current" /> Xem Trailer
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full gap-2 px-6 backdrop-blur-sm bg-black/10 border-white/10"
+                  disabled
+                >
+                  <Play className="h-4 w-4 fill-current" /> Xem Trailer
+                </Button>
+              )}
             </div>
           </div>
           

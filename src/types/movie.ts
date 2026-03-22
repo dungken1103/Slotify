@@ -10,7 +10,6 @@ export interface MovieResponse {
   posterUrl: string;
   backdropUrl: string;
   trailerUrl: string;
-  rating: number;
   isActive: boolean;
 }
 

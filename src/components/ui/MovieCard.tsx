@@ -1,4 +1,4 @@
-import { Star, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Button } from "./button";
 import { Link } from "react-router-dom";
 
@@ -6,7 +6,6 @@ export interface Movie {
   id: string;
   title: string;
   poster: string;
-  rating: number;
   genre: string[];
   duration: string;
   releaseDate: string;
@@ -45,10 +44,6 @@ export function MovieCard({ movie }: MovieCardProps) {
           >
             {movie.title}
           </h3>
-          <div className="flex items-center gap-1 text-yellow-500 shrink-0">
-            <Star className="h-3.5 w-3.5 fill-current" />
-            <span className="text-sm font-medium">{movie.rating}</span>
-          </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

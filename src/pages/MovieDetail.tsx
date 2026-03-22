@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Star, Clock, Calendar, ChevronLeft, Building2, Ticket } from "lucide-react";
+import { Clock, Calendar, ChevronLeft, Building2, Ticket, Play } from "lucide-react";
 import { movieService } from "../services/movie.service";
 import { ShowtimeService } from "../services/showtime.service";
 import type { Showtime } from "../services/showtime.service";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { formatCurrency, getYouTubeEmbedUrl } from "@/lib/utils";
 
 interface MovieDetail {
@@ -13,7 +14,6 @@ interface MovieDetail {
   backdrop: string;
   poster: string;
   description: string;
-  rating: number;
   duration: string;
   releaseDate: string;
   director: string;
@@ -30,6 +30,7 @@ export function MovieDetailPage() {
 
   useEffect(() => {
     if (id) {
+      setLoading(true);
       fetchMovie(id);
       fetchShowtimes(id);
     }
@@ -51,7 +52,6 @@ export function MovieDetailPage() {
     poster: data.posterUrl || "",
     trailerUrl: data.trailerUrl || "",
     description: data.description || "",
-    rating: data.rating ?? 0,
     duration: data.durationMinutes ? `${data.durationMinutes} phút` : "",
     releaseDate: data.releaseDate ?? "",
     director: data.director ?? "",
@@ -81,7 +81,11 @@ export function MovieDetailPage() {
   };
 
   if (loading) {
-    return <div className="p-20 text-center text-xl">Loading...</div>;
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <LoadingSpinner size={48} />
+      </div>
+    );
   }
 
   if (!movie) {
@@ -123,14 +127,6 @@ export function MovieDetailPage() {
               className="hidden md:block w-48 rounded-lg shadow-2xl shadow-black/50 border border-white/10"
             />
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-yellow-500">
-                <Star className="h-5 w-5 fill-current" />
-                <span className="text-xl font-bold">{movie.rating}</span>
-                <span className="text-muted-foreground ml-2 text-sm">
-                  (2.5k đánh giá)
-                </span>
-              </div>
-
               <h1 className="text-4xl font-extrabold tracking-tight md:text-6xl">
                 {movie.title}
               </h1>
@@ -150,6 +146,25 @@ export function MovieDetailPage() {
                   ))}
                 </div>
               </div>
+
+              {movie.trailerUrl ? (
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full gap-2 border-white/20 bg-black/20 text-white backdrop-blur-sm hover:bg-white/10"
+                  >
+                    <a
+                      href={movie.trailerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Play className="h-4 w-4 fill-current" /> Xem trailer
+                    </a>
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -260,12 +275,6 @@ export function MovieDetailPage() {
               </Button>
               
               <div className="mt-8 space-y-4 pt-8 border-t border-border/50 text-sm">
-                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Đánh giá</span>
-                    <span className="font-medium text-yellow-500 flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-current" /> {movie.rating}
-                    </span>
-                 </div>
                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Thời lượng</span>
                     <span className="font-medium">{movie.duration}</span>
