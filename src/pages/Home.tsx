@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SEO } from "../components/SEO";
 import { Button } from "../components/ui/button";
 import { MovieCard, type Movie } from "../components/ui/MovieCard";
 import { Play } from "lucide-react";
@@ -64,6 +65,7 @@ export function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <SEO title="Trang Chủ" />
       {/* Hero Section */}
       <section className="relative h-[80vh] w-full overflow-hidden bg-background">
         {featuredMovie.trailerUrl && getYouTubeEmbedUrl(featuredMovie.trailerUrl) ? (

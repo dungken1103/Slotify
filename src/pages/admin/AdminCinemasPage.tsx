@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { SEO } from "../../components/SEO";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Edit, Loader2, MapPin, Plus, Power, Trash2 } from "lucide-react";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { VnAddressSelect } from "../../components/ui/vn-address-select";
 import { cn } from "../../lib/utils";
 import { fieldErrorClassName, getApiErrorMessage } from "./adminVenueHelpers";
 
@@ -48,7 +50,7 @@ export function AdminCinemasPage() {
         try {
             setIsLoading(true);
             setError(null);
-            const response = await CinemaService.getAll(true);
+            const response = await CinemaService.getAll(false);
             if (!response.succeeded) {
                 setError(response.message || "Không thể tải danh sách rạp.");
                 return;
@@ -151,6 +153,7 @@ export function AdminCinemasPage() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
+            <SEO title="Quản Lý Cụm Rạp" />
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Quản Lý Cụm Rạp</h2>
@@ -243,17 +246,14 @@ export function AdminCinemasPage() {
                             {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="city">Thành phố</Label>
-                            <Input id="city" {...form.register("city")} className={cn(form.formState.errors.city && fieldErrorClassName)} placeholder="Ví dụ: TP. Hồ Chí Minh" />
-                            {form.formState.errors.city && <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Địa chỉ</Label>
-                            <Input id="address" {...form.register("address")} className={cn(form.formState.errors.address && fieldErrorClassName)} placeholder="Ví dụ: 72 Lê Thánh Tôn, Quận 1" />
-                            {form.formState.errors.address && <p className="text-sm text-destructive">{form.formState.errors.address.message}</p>}
-                        </div>
+                        <VnAddressSelect
+                            cityValue={form.watch("city")}
+                            addressValue={form.watch("address")}
+                            onCityChange={(city) => form.setValue("city", city, { shouldValidate: true })}
+                            onAddressChange={(address) => form.setValue("address", address, { shouldValidate: true })}
+                            errorCity={form.formState.errors.city?.message}
+                            errorAddress={form.formState.errors.address?.message}
+                        />
 
                         <label className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
                             <input type="checkbox" className="h-4 w-4" {...form.register("isActive")} />
