@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://slotify232.onrender.com/sitemap.xml
