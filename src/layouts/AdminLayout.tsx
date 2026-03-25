@@ -26,6 +26,9 @@ export function AdminLayout() {
         { label: "Lịch Chiếu", path: "/admin/showtimes", icon: CalendarDays },
         { label: "Người Dùng", path: "/admin/users", icon: Users },
     ];
+    const currentItem = [...navItems]
+        .sort((a, b) => b.path.length - a.path.length)
+        .find(item => location.pathname.startsWith(item.path));
 
     return (
         <div className="flex min-h-screen bg-background text-foreground">
@@ -86,10 +89,11 @@ export function AdminLayout() {
             {/* Main Content */}
             <main className="flex-1 pl-64">
                 <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-sm shadow-sm transition-all duration-300">
+                    {/* example: /admin/showtimes -> lịch chiếu */}
                     <h1 className="text-xl font-semibold capitalize tracking-tight">
                         {location.pathname === "/admin"
                             ? "Bảng Điều Khiển Nội Bộ"
-                            : location.pathname.split("/").pop()}
+                            : currentItem?.label}
                     </h1>
                     <div className="flex items-center gap-4">
                         {/* Add top bar actions here like notifications or global search if needed */}

@@ -1,4 +1,4 @@
-import { Film, UserCircle, LogOut, Settings, Menu, Ticket } from "lucide-react";
+import { Film, UserCircle, LogOut, Settings, Menu, Ticket, LayoutDashboard } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { useAuthStore } from "../../middlewares/useAuthStore";
@@ -104,6 +104,14 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {user?.role === "ADMIN" && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/admin">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Quản trị viên</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/profile">
                       <Settings className="mr-2 h-4 w-4" />
@@ -183,6 +191,14 @@ export function Navbar() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    {user?.role === "ADMIN" && (
+                      <DropdownMenuItem asChild className="cursor-pointer">
+                        <Link to="/admin">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>Quản trị viên</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link to="/profile">
                         <Settings className="mr-2 h-4 w-4" />
