@@ -95,7 +95,7 @@ export function AdminMoviesPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    
+
     setIsUploading(true);
     try {
       const response = await UploadService.uploadImage(file);
@@ -192,7 +192,6 @@ export function AdminMoviesPage() {
               <thead className="bg-secondary/40 text-muted-foreground border-b border-white/10 uppercase text-xs">
                 <tr>
                   <th className="px-6 py-4 font-medium">Tên phim</th>
-                  <th className="px-6 py-4 font-medium">Đạo diễn</th>
                   <th className="px-6 py-4 font-medium">Thời lượng</th>
                   <th className="px-6 py-4 font-medium">Khởi chiếu</th>
                   <th className="px-6 py-4 font-medium">Trạng thái</th>
@@ -205,21 +204,21 @@ export function AdminMoviesPage() {
                     <td className="px-6 py-4">
                       <div className="font-semibold text-foreground truncate max-w-[200px]">{movie.title}</div>
                       <div className="flex gap-1 flex-wrap mt-1">
-                        {movie.genre?.split(",").slice(0,2).map((g, i) => (
-                           <span key={i} className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px]">{g.trim()}</span>
+                        {movie.genre?.split(",").slice(0, 2).map((g, i) => (
+                          <span key={i} className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px]">{g.trim()}</span>
                         ))}
                         {movie.genre?.split(",").length > 2 && <span className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-[10px]">+{movie.genre.split(",").length - 2}</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    {/* <td className="px-6 py-4">
                       <div className="flex gap-1 flex-wrap max-w-[150px]">
                         {movie.director?.split(",").map((d, i) => (
                            <span key={i} className="px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-500 border border-violet-500/20 text-[10px]">{d.trim()}</span>
                         ))}
                       </div>
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4">{movie.durationMinutes} phút</td>
-                    <td className="px-6 py-4">{new Date(movie.releaseDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">{new Date(movie.releaseDate).toLocaleDateString('en-GB')}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${movie.isActive ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
                         {movie.isActive ? 'Đang chiếu' : 'Ngừng chiếu'}
@@ -266,11 +265,11 @@ export function AdminMoviesPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="director">Đạo diễn <span className="text-red-500">*</span></Label>
-                <TagInput 
+                <TagInput
                   id="director"
-                  tags={formData.director ? formData.director.split(',').map(s=>s.trim()).filter(Boolean) : []} 
-                  onTagsChange={(tags) => handleTagsChange('director', tags)} 
-                  placeholder="Thêm đạo diễn..." 
+                  tags={formData.director ? formData.director.split(',').map(s => s.trim()).filter(Boolean) : []}
+                  onTagsChange={(tags) => handleTagsChange('director', tags)}
+                  placeholder="Thêm đạo diễn..."
                 />
               </div>
             </div>
@@ -278,20 +277,20 @@ export function AdminMoviesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="genre">Thể loại <span className="text-red-500">*</span></Label>
-                <TagInput 
+                <TagInput
                   id="genre"
-                  tags={formData.genre ? formData.genre.split(',').map(s=>s.trim()).filter(Boolean) : []} 
-                  onTagsChange={(tags) => handleTagsChange('genre', tags)} 
-                  placeholder="Thêm thể loại..." 
+                  tags={formData.genre ? formData.genre.split(',').map(s => s.trim()).filter(Boolean) : []}
+                  onTagsChange={(tags) => handleTagsChange('genre', tags)}
+                  placeholder="Thêm thể loại..."
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cast">Diễn viên <span className="text-red-500">*</span></Label>
-                <TagInput 
+                <TagInput
                   id="cast"
-                  tags={formData.cast ? formData.cast.split(',').map(s=>s.trim()).filter(Boolean) : []} 
-                  onTagsChange={(tags) => handleTagsChange('cast', tags)} 
-                  placeholder="Thêm diễn viên..." 
+                  tags={formData.cast ? formData.cast.split(',').map(s => s.trim()).filter(Boolean) : []}
+                  onTagsChange={(tags) => handleTagsChange('cast', tags)}
+                  placeholder="Thêm diễn viên..."
                 />
               </div>
             </div>
@@ -311,28 +310,28 @@ export function AdminMoviesPage() {
               <Label>Poster (Hình ảnh) <span className="text-red-500">*</span></Label>
               <div className="flex items-center gap-4">
                 {formData.posterUrl ? (
-                   <div className="relative h-24 w-16 rounded overflow-hidden shadow-sm border border-border group">
-                      <img src={formData.posterUrl} alt="Poster" className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         <button type="button" onClick={handleRemoveImage} className="text-red-500 bg-red-500/10 p-1.5 rounded-full hover:bg-red-500/20">
-                           <X className="h-4 w-4" />
-                         </button>
-                      </div>
-                   </div>
+                  <div className="relative h-24 w-16 rounded overflow-hidden shadow-sm border border-border group">
+                    <img src={formData.posterUrl} alt="Poster" className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button type="button" onClick={handleRemoveImage} className="text-red-500 bg-red-500/10 p-1.5 rounded-full hover:bg-red-500/20">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-24 w-16 bg-secondary/50 rounded flex items-center justify-center border border-dashed border-muted-foreground/30">
-                     <Upload className="h-5 w-5 text-muted-foreground/50" />
+                    <Upload className="h-5 w-5 text-muted-foreground/50" />
                   </div>
                 )}
                 <div className="flex-1">
-                  <Input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageUpload} 
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
                     disabled={isUploading}
                     className="cursor-pointer"
                   />
-                  {isUploading && <p className="text-xs text-primary mt-2 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Đang tải ảnh lên...</p>}
+                  {isUploading && <p className="text-xs text-primary mt-2 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Đang tải ảnh lên...</p>}
                 </div>
               </div>
             </div>
@@ -345,10 +344,10 @@ export function AdminMoviesPage() {
             <div className="space-y-2 col-span-2">
               <Label htmlFor="description">Mô tả phim</Label>
               <div className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:text-base mb-4">
-                <ReactQuill 
-                  theme="snow" 
-                  value={formData.description} 
-                  onChange={(content) => setFormData(prev => ({...prev, description: content}))} 
+                <ReactQuill
+                  theme="snow"
+                  value={formData.description}
+                  onChange={(content) => setFormData(prev => ({ ...prev, description: content }))}
                 />
               </div>
             </div>

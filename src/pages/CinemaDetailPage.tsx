@@ -31,7 +31,7 @@ export function CinemaDetailPage() {
           ? movie.genre
           : [],
     duration: movie.durationMinutes ? `${movie.durationMinutes} phút` : movie.duration || "",
-    releaseDate: movie.releaseDate,
+    releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('en-GB') : "",
     trailerUrl: movie.trailerUrl || "",
   });
 

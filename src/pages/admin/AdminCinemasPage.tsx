@@ -50,7 +50,7 @@ export function AdminCinemasPage() {
         try {
             setIsLoading(true);
             setError(null);
-            const response = await CinemaService.getAll(false);
+            const response = await CinemaService.getAll(true);
             if (!response.succeeded) {
                 setError(response.message || "Không thể tải danh sách rạp.");
                 return;

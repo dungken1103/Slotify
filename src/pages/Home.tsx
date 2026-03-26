@@ -29,7 +29,7 @@ export function HomePage() {
           ? movie.genre
           : [],
     duration: movie.durationMinutes ? `${movie.durationMinutes} phút` : "",
-    releaseDate: movie.releaseDate,
+    releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('en-GB') : "",
     trailerUrl: movie.trailerUrl || "",
   });
 
@@ -100,9 +100,7 @@ export function HomePage() {
               {featuredMovie.title}
             </h1>
 
-            <p className="max-w-[600px] text-lg text-muted-foreground md:text-xl line-clamp-3">
-              {featuredMovie.releaseDate}
-            </p>
+
 
             <div className="flex items-center gap-4 pt-4">
               <Link to={`/movie/${featuredMovie.id}`}>
@@ -137,7 +135,7 @@ export function HomePage() {
               )}
             </div>
           </div>
-          
+
           <div className="hidden md:block w-1/3 max-w-[320px] shrink-0 z-10 self-end">
             <div className="aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-2xl border border-white/10 group">
               <img

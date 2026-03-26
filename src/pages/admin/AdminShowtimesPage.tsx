@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { format, addDays, isSameDay, startOfDay } from "date-fns";
+import { vi } from "date-fns/locale";
 import { ShowtimeService } from "../../services/showtime.service";
 import type { Showtime, ShowtimeRequest } from "../../services/showtime.service";
 import { movieService } from "../../services/movie.service";
@@ -9,7 +11,7 @@ import { AuditoriumService } from "../../services/auditorium.service";
 import type { Auditorium } from "../../services/auditorium.service";
 
 import { Button } from "../../components/ui/button";
-import { Plus, Edit, Trash2, Calendar, Clock, Loader2, MapPin, Film } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, Clock, Loader2, MapPin, Film, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -38,9 +40,29 @@ export function AdminShowtimesPage() {
 
     const [selectedCinemaId, setSelectedCinemaId] = useState<string>("");
 
+    // Filter state
+    const [filterMovieId, setFilterMovieId] = useState<string>("");
+    const [filterCinemaId, setFilterCinemaId] = useState<string>("");
+    const [filterDate, setFilterDate] = useState<Date | null>(null);
+
+    // Generate dates from today → max startTime in loaded showtimes
+    const availableDates = useMemo(() => {
+        const today = startOfDay(new Date());
+        if (showtimes.length === 0) return [today];
+        const maxDate = startOfDay(
+            new Date(Math.max(...showtimes.map(s => new Date(s.startTime).getTime())))
+        );
+        const days: Date[] = [];
+        let cursor = today;
+        while (cursor <= maxDate) {
+            days.push(cursor);
+            cursor = addDays(cursor, 1);
+        }
+        return days;
+    }, [showtimes]);
+
     const [formData, setFormData] = useState<ShowtimeRequest>({
         startTime: "",
-        endTime: "",
         standardPrice: 0,
         vipPrice: 0,
         couplePrice: 0,
@@ -48,13 +70,43 @@ export function AdminShowtimesPage() {
         auditoriumId: ""
     });
 
+    // Responsive date paging
+    const getVisibleCount = useCallback(() => {
+        const w = window.innerWidth;
+        if (w < 640) return 3;
+        if (w < 768) return 4;
+        if (w < 1024) return 5;
+        if (w < 1280) return 7;
+        return 9;
+    }, []);
+
+    const [visibleCount, setVisibleCount] = useState(getVisibleCount);
+    const [dateStartIndex, setDateStartIndex] = useState(0);
+
+    useEffect(() => {
+        const onResize = () => setVisibleCount(getVisibleCount());
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, [getVisibleCount]);
+
+    const visibleDates = useMemo(
+        () => availableDates.slice(dateStartIndex, dateStartIndex + visibleCount),
+        [availableDates, dateStartIndex, visibleCount]
+    );
+
+    const canPagePrev = dateStartIndex > 0;
+    const canPageNext = dateStartIndex + visibleCount < availableDates.length;
+
+    const pageLeft = () => setDateStartIndex(i => Math.max(0, i - visibleCount));
+    const pageRight = () => setDateStartIndex(i => Math.min(availableDates.length - visibleCount, i + visibleCount));
+
     const fetchInitialData = async () => {
         try {
             setIsLoading(true);
             const [showtimesRes, moviesRes, cinemasRes] = await Promise.all([
                 ShowtimeService.getAll(),
                 movieService.getAllMovies(true),
-                CinemaService.getAll(false) // Only active cinemas
+                CinemaService.getAll(false)
             ]);
 
             if (showtimesRes.succeeded) setShowtimes(showtimesRes.data ?? []);
@@ -73,7 +125,7 @@ export function AdminShowtimesPage() {
         fetchInitialData();
     }, []);
 
-    // Fetch auditoriums when cinema changes
+    // Fetch auditoriums when cinema changes (for dialog form)
     useEffect(() => {
         const fetchAuditoriums = async () => {
             if (!selectedCinemaId) {
@@ -92,22 +144,40 @@ export function AdminShowtimesPage() {
         fetchAuditoriums();
     }, [selectedCinemaId]);
 
+    // Client-side filtered showtimes
+    const filteredShowtimes = useMemo(() => {
+        return showtimes.filter(s => {
+            if (filterMovieId && s.movieId !== filterMovieId) return false;
+            if (filterCinemaId && s.cinemaId !== filterCinemaId) return false;
+            if (filterDate) {
+                const showTime = startOfDay(new Date(s.startTime));
+                if (!isSameDay(showTime, filterDate)) return false;
+            }
+            return true;
+        });
+    }, [showtimes, filterMovieId, filterCinemaId, filterDate]);
+
+    const hasActiveFilters = filterMovieId || filterCinemaId || filterDate;
+
+    const clearFilters = () => {
+        setFilterMovieId("");
+        setFilterCinemaId("");
+        setFilterDate(null);
+    };
+
     const handleOpenDialog = (showtime?: Showtime) => {
         if (showtime) {
             setEditingShowtime(showtime);
             setSelectedCinemaId(showtime.cinemaId);
 
-            // Format datetime for input type="datetime-local" (YYYY-MM-DDThh:mm)
             const formatForInput = (dateStr: string) => {
                 const d = new Date(dateStr);
-                // Adjust for local timezone offset
                 d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
                 return d.toISOString().slice(0, 16);
             };
 
             setFormData({
                 startTime: formatForInput(showtime.startTime),
-                endTime: formatForInput(showtime.endTime),
                 standardPrice: showtime.standardPrice,
                 vipPrice: showtime.vipPrice,
                 couplePrice: showtime.couplePrice,
@@ -119,7 +189,6 @@ export function AdminShowtimesPage() {
             setSelectedCinemaId("");
             setFormData({
                 startTime: "",
-                endTime: "",
                 standardPrice: 50000,
                 vipPrice: 70000,
                 couplePrice: 120000,
@@ -133,13 +202,11 @@ export function AdminShowtimesPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Convert local datetime to UTC for backend if needed, or send as IsoString
         try {
             setIsSubmitting(true);
             const payload: ShowtimeRequest = {
                 ...formData,
                 startTime: new Date(formData.startTime).toISOString(),
-                endTime: new Date(formData.endTime).toISOString(),
             };
 
             if (editingShowtime) {
@@ -149,13 +216,11 @@ export function AdminShowtimesPage() {
             }
             setIsDialogOpen(false);
 
-            // Refetch showtimes
             const res = await ShowtimeService.getAll();
             if (res.succeeded) setShowtimes(res.data ?? []);
 
         } catch (err: any) {
             console.error("Lỗi khi lưu lịch chiếu", err);
-            // In a real app, read the API error message
             alert(err?.response?.data?.message || "Đã xảy ra lỗi khi lưu thông tin. Có thể do trùng lịch chiếu.");
         } finally {
             setIsSubmitting(false);
@@ -166,12 +231,11 @@ export function AdminShowtimesPage() {
         if (window.confirm("Bạn có chắc chắn muốn xóa lịch chiếu này không? Hành động này không thể hoàn tác.")) {
             try {
                 await ShowtimeService.delete(id);
-                // Refetch
                 const res = await ShowtimeService.getAll();
                 if (res.succeeded) setShowtimes(res.data ?? []);
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Lỗi khi xóa lịch chiếu", err);
-                alert("Không thể xóa lịch chiếu này.");
+                alert(err?.response?.data?.message || "Không thể xóa lịch chiếu này.");
             }
         }
     };
@@ -184,9 +248,19 @@ export function AdminShowtimesPage() {
         }).format(date);
     };
 
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('vi-VN', {
+            hour: '2-digit', minute: '2-digit'
+        }).format(date);
+    };
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     };
+
+    // Get unique cinema names from showtimes for the filter (distinct values that actually exist)
+    const selectClass = "flex h-9 w-full items-center rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring";
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -203,9 +277,140 @@ export function AdminShowtimesPage() {
                 </Button>
             </div>
 
+            {/* Filter Bar */}
+            <Card className="shadow-sm overflow-hidden">
+                <CardContent className="pt-5 pb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Bộ lọc</span>
+                        {hasActiveFilters && (
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive gap-1" onClick={clearFilters}>
+                                <X className="h-3 w-3" /> Xóa bộ lọc
+                            </Button>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* Filter by Movie */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Phim</Label>
+                            <select
+                                className={selectClass}
+                                value={filterMovieId}
+                                onChange={(e) => setFilterMovieId(e.target.value)}
+                            >
+                                <option value="">Tất cả phim</option>
+                                {movies.map(m => (
+                                    <option key={m.id} value={m.id}>{m.title}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Filter by Cinema */}
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Cụm rạp</Label>
+                            <select
+                                className={selectClass}
+                                value={filterCinemaId}
+                                onChange={(e) => setFilterCinemaId(e.target.value)}
+                            >
+                                <option value="">Tất cả cụm rạp</option>
+                                {cinemas.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Horizontal Date Picker */}
+                    <div className="mt-4 space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                            Ngày chiếu
+                            {(canPagePrev || canPageNext) && (
+                                <span className="ml-2 text-muted-foreground/60">
+                                    ({dateStartIndex + 1}–{Math.min(dateStartIndex + visibleCount, availableDates.length)} / {availableDates.length})
+                                </span>
+                            )}
+                        </Label>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-8 shrink-0 rounded-md"
+                                onClick={pageLeft}
+                                disabled={!canPagePrev}
+                                type="button"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+
+                            <div className="flex flex-1 gap-1.5">
+                                <Button
+                                    variant={filterDate === null ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-14 flex-1 flex-col gap-0.5 rounded-lg ${
+                                        filterDate === null ? 'ring-2 ring-primary ring-offset-2' : ''
+                                    }`}
+                                    onClick={() => setFilterDate(null)}
+                                    type="button"
+                                >
+                                    <span className="text-[10px] uppercase font-bold opacity-80">Tất cả</span>
+                                    <span className="text-base font-bold leading-none">ALL</span>
+                                </Button>
+                                {visibleDates.map((date) => {
+                                    const isSelected = filterDate && isSameDay(date, filterDate);
+                                    return (
+                                        <Button
+                                            key={date.toISOString()}
+                                            variant={isSelected ? "default" : "outline"}
+                                            size="sm"
+                                            className={`h-14 flex-1 flex-col gap-0.5 rounded-lg transition-all ${
+                                                isSelected ? 'ring-2 ring-primary ring-offset-2' : ''
+                                            }`}
+                                            onClick={() => setFilterDate(date)}
+                                            type="button"
+                                        >
+                                            <span className="text-[10px] uppercase font-bold opacity-80">
+                                                {format(date, 'eee', { locale: vi })}
+                                            </span>
+                                            <span className="text-base font-bold leading-none">
+                                                {format(date, 'dd')}
+                                            </span>
+                                            <span className="text-[10px] opacity-70">
+                                                {format(date, 'MM/yyyy')}
+                                            </span>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-8 shrink-0 rounded-md"
+                                onClick={pageRight}
+                                disabled={!canPageNext}
+                                type="button"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {error && (
                 <div className="bg-destructive/15 text-destructive p-4 rounded-md border border-destructive/20">
                     {error}
+                </div>
+            )}
+
+            {/* Results count */}
+            {!isLoading && (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                        Hiển thị <span className="font-semibold text-foreground">{filteredShowtimes.length}</span>
+                        {hasActiveFilters && <> / {showtimes.length}</>} lịch chiếu
+                    </p>
                 </div>
             )}
 
@@ -218,26 +423,37 @@ export function AdminShowtimesPage() {
                         </Card>
                     ))}
                 </div>
-            ) : showtimes.length === 0 ? (
+            ) : filteredShowtimes.length === 0 ? (
                 <div className="border border-border/50 rounded-xl p-12 flex flex-col items-center justify-center text-muted-foreground bg-card/50 shadow-sm gap-3 backdrop-blur-sm border-dashed">
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
                         <Calendar className="h-6 w-6 text-primary" />
                     </div>
-                    <p className="text-lg font-semibold text-foreground">Chưa có lịch chiếu nào</p>
-                    <p className="text-sm text-center max-w-md">Hãy bắt đầu lên lịch chiếu cho các bộ phim tại khu vực rạp.</p>
+                    <p className="text-lg font-semibold text-foreground">
+                        {hasActiveFilters ? "Không tìm thấy lịch chiếu" : "Chưa có lịch chiếu nào"}
+                    </p>
+                    <p className="text-sm text-center max-w-md">
+                        {hasActiveFilters
+                            ? "Không có lịch chiếu nào phù hợp với bộ lọc hiện tại. Hãy thử thay đổi tiêu chí lọc."
+                            : "Hãy bắt đầu lên lịch chiếu cho các bộ phim tại khu vực rạp."}
+                    </p>
+                    {hasActiveFilters && (
+                        <Button variant="outline" size="sm" className="mt-2 gap-1" onClick={clearFilters}>
+                            <X className="h-3.5 w-3.5" /> Xóa bộ lọc
+                        </Button>
+                    )}
                 </div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {showtimes.map((showtime) => (
+                    {filteredShowtimes.map((showtime) => (
                         <Card key={showtime.id} className="transition-all duration-200 hover:shadow-md">
                             <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
                                 <div className="space-y-1">
                                     <CardTitle className="text-lg font-bold flex items-center gap-2 line-clamp-1">
-                                        <Film className="h-4 w-4 text-primary" /> {showtime.movieTitle}
+                                        <Film className="h-4 w-4 text-primary shrink-0" /> {showtime.movieTitle}
                                     </CardTitle>
                                     <div className="flex items-center text-sm text-muted-foreground gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        <span className="line-clamp-1">{showtime.cinemaName} - {showtime.auditoriumName}</span>
+                                        <MapPin className="h-3 w-3 shrink-0" />
+                                        <span className="line-clamp-1">{showtime.cinemaName} — {showtime.auditoriumName}</span>
                                     </div>
                                 </div>
                             </CardHeader>
@@ -246,24 +462,25 @@ export function AdminShowtimesPage() {
                                     <div className="bg-muted/30 rounded-md p-3 space-y-2 border border-border/50">
                                         <div className="flex items-center text-sm font-medium gap-2">
                                             <Clock className="h-4 w-4 text-primary" />
-                                            Bắt đầu: {formatDateTime(showtime.startTime)}
+                                            <span>{formatTime(showtime.startTime)} — {formatTime(showtime.endTime)}</span>
                                         </div>
-                                        <div className="flex items-center text-sm text-muted-foreground gap-2 pl-6">
-                                            Kết thúc: {formatDateTime(showtime.endTime)}
+                                        <div className="flex items-center text-xs text-muted-foreground gap-2 pl-6">
+                                            <Calendar className="h-3 w-3" />
+                                            {new Date(showtime.startTime).toLocaleDateString('en-GB')}
                                         </div>
                                     </div>
 
                                     <div className="text-xs text-muted-foreground space-y-1 border-t pt-3">
                                         <div className="flex justify-between">
-                                            <span>Giá Standard:</span>
+                                            <span>Standard:</span>
                                             <span className="font-semibold text-foreground">{formatCurrency(showtime.standardPrice)}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span>Giá VIP:</span>
+                                            <span>VIP:</span>
                                             <span className="font-semibold text-foreground">{formatCurrency(showtime.vipPrice)}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span>Giá Couple:</span>
+                                            <span>Couple:</span>
                                             <span className="font-semibold text-foreground">{formatCurrency(showtime.couplePrice)}</span>
                                         </div>
                                     </div>
@@ -330,7 +547,7 @@ export function AdminShowtimesPage() {
                                     value={selectedCinemaId}
                                     onChange={(e) => {
                                         setSelectedCinemaId(e.target.value);
-                                        setFormData({ ...formData, auditoriumId: "" }); // Reset auditorium selection
+                                        setFormData({ ...formData, auditoriumId: "" });
                                     }}
                                     required
                                 >
@@ -377,21 +594,10 @@ export function AdminShowtimesPage() {
                                     required
                                 />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="endTime" className="text-right whitespace-nowrap">Kết thúc <span className="text-destructive">*</span></Label>
-                                <Input
-                                    id="endTime"
-                                    type="datetime-local"
-                                    value={formData.endTime}
-                                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                                    className="col-span-3"
-                                    required
-                                />
-                            </div>
 
                             {/* Giá vé */}
                             <div className="grid grid-cols-4 items-center gap-4 mt-2">
-                                <Label htmlFor="standardPrice" className="text-right whitespace-nowrap">Giá Standard (VNĐ)</Label>
+                                <Label htmlFor="standardPrice" className="text-right whitespace-nowrap">Giá Standard </Label>
                                 <Input
                                     id="standardPrice"
                                     type="number"
@@ -404,7 +610,7 @@ export function AdminShowtimesPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="vipPrice" className="text-right whitespace-nowrap">Giá VIP (VNĐ)</Label>
+                                <Label htmlFor="vipPrice" className="text-right whitespace-nowrap">Giá VIP </Label>
                                 <Input
                                     id="vipPrice"
                                     type="number"
@@ -417,7 +623,7 @@ export function AdminShowtimesPage() {
                                 />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="couplePrice" className="text-right whitespace-nowrap">Giá Couple (VNĐ)</Label>
+                                <Label htmlFor="couplePrice" className="text-right whitespace-nowrap">Giá Couple </Label>
                                 <Input
                                     id="couplePrice"
                                     type="number"

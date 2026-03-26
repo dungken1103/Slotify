@@ -18,7 +18,6 @@ export interface Showtime {
 
 export interface ShowtimeRequest {
     startTime: string;
-    endTime: string;
     standardPrice: number;
     vipPrice: number;
     couplePrice: number;

@@ -53,7 +53,7 @@ export function MovieDetailPage() {
     trailerUrl: data.trailerUrl || "",
     description: data.description || "",
     duration: data.durationMinutes ? `${data.durationMinutes} phút` : "",
-    releaseDate: data.releaseDate ?? "",
+    releaseDate: data.releaseDate ? new Date(data.releaseDate).toLocaleDateString('en-GB') : "",
     director: data.director ?? "",
     cast:
       typeof data.cast === "string"
