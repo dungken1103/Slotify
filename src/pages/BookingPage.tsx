@@ -159,7 +159,10 @@ export function BookingPage() {
                 <div className="w-4 h-4 rounded bg-primary"></div> Đang chọn
              </div>
              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-white/10"></div> Đã đặt
+                <div className="w-4 h-4 rounded bg-white/10 flex items-center justify-center text-muted-foreground">
+                  <X className="h-3 w-3" />
+                </div>{" "}
+                Đã đặt
              </div>
           </div>
         </div>

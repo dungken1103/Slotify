@@ -4,44 +4,74 @@ import { MovieCard, type Movie } from "../components/ui/MovieCard";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Input } from "../components/ui/input";
 import { Search, Film } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { formatDateVi, isUpcomingRelease, splitCommaList } from "../lib/utils";
+import { useLocation } from "react-router-dom";
 
 export function MoviesPage() {
+  const location = useLocation();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "now" | "upcoming" | "featured">("all");
 
   useEffect(() => {
     fetchMovies();
   }, []);
 
   useEffect(() => {
-    const filtered = movies.filter(movie => 
-      movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      movie.genre.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    setFilteredMovies(filtered);
-  }, [searchQuery, movies]);
+    const sp = new URLSearchParams(location.search);
+    const filter = sp.get("filter");
+    if (filter === "now" || filter === "upcoming" || filter === "featured" || filter === "all") {
+      setActiveFilter(filter);
+    }
+  }, [location.search]);
 
-  const normalizeMovie = (movie: any): Movie => ({
-    id: movie.id,
-    title: movie.title,
-    poster: movie.posterUrl || "",
-    genre:
-      typeof movie.genre === "string"
-        ? movie.genre.split(",").map((g: string) => g.trim())
-        : Array.isArray(movie.genre)
-          ? movie.genre
-          : [],
-    duration: movie.durationMinutes ? `${movie.durationMinutes} phút` : "",
-    releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('en-GB') : "",
-    trailerUrl: movie.trailerUrl || "",
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    const featuredIds = new Set(
+      [...movies]
+        .filter((m) => !isUpcomingRelease(m.releaseDateISO) && (m.isActive ?? true))
+        .sort((a, b) => (new Date(b.releaseDateISO || 0).getTime() - new Date(a.releaseDateISO || 0).getTime()))
+        .slice(0, 10)
+        .map((m) => m.id)
+    );
+
+    const filtered = movies.filter((movie) => {
+      const matchesQuery =
+        !q ||
+        (movie.title || "").toLowerCase().includes(q) ||
+        (movie.genre || []).some((g) => (g || "").toLowerCase().includes(q));
+
+      if (!matchesQuery) return false;
+
+      if (activeFilter === "now") return !isUpcomingRelease(movie.releaseDateISO) && (movie.isActive ?? true);
+      if (activeFilter === "upcoming") return isUpcomingRelease(movie.releaseDateISO);
+      if (activeFilter === "featured") return featuredIds.has(movie.id);
+      return true;
+    });
+
+    setFilteredMovies(filtered);
+  }, [searchQuery, movies, activeFilter]);
+
+  const normalizeMovie = (raw: any): Movie => ({
+    id: String(raw?.id ?? ""),
+    title: String(raw?.title ?? "").trim() || "Chưa có tiêu đề",
+    poster: String(raw?.posterUrl ?? "").trim(),
+    genre: splitCommaList(raw?.genre),
+    duration: raw?.durationMinutes ? `${raw.durationMinutes} phút` : "",
+    releaseDate: formatDateVi(raw?.releaseDate),
+    trailerUrl: String(raw?.trailerUrl ?? "").trim(),
+    releaseDateISO: raw?.releaseDate ? String(raw.releaseDate) : undefined,
+    isActive: typeof raw?.isActive === "boolean" ? raw.isActive : undefined,
   });
 
   const fetchMovies = async () => {
     try {
       setLoading(true);
-      const data = await movieService.getAllMovies(true);
+      const data = await movieService.getAllMovies(false);
       const normalizedMovies = (data || []).map(normalizeMovie);
       setMovies(normalizedMovies);
       setFilteredMovies(normalizedMovies);
@@ -88,6 +118,37 @@ export function MoviesPage() {
       </div>
 
       <div className="space-y-8">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={activeFilter === "all" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setActiveFilter("all")}
+          >
+            Tất cả
+          </Button>
+          <Button
+            variant={activeFilter === "featured" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setActiveFilter("featured")}
+          >
+            Nổi bật
+          </Button>
+          <Button
+            variant={activeFilter === "now" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setActiveFilter("now")}
+          >
+            Đang chiếu
+          </Button>
+          <Button
+            variant={activeFilter === "upcoming" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setActiveFilter("upcoming")}
+          >
+            Sắp chiếu
+          </Button>
+        </div>
+
         {filteredMovies.length > 0 ? (
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5">
             {filteredMovies.map((movie) => (

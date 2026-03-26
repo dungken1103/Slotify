@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import { SEO } from "../components/SEO";
+import { SEO as Seo } from "../components/SEO";
 import { Button } from "../components/ui/button";
 import { MovieCard, type Movie } from "../components/ui/MovieCard";
 import { Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { movieService } from "../services/movie.service";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
-import { getYouTubeEmbedUrl } from "../lib/utils";
+import { formatDateVi, getYouTubeEmbedUrl, isUpcomingRelease, splitCommaList } from "../lib/utils";
 
 export function HomePage() {
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [nowShowing, setNowShowing] = useState<Movie[]>([]);
+  const [upcoming, setUpcoming] = useState<Movie[]>([]);
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,33 +18,47 @@ export function HomePage() {
     fetchMovies();
   }, []);
 
-  // ✅ Chuẩn hóa dữ liệu từ backend
-  const normalizeMovie = (movie: any): Movie => ({
-    id: movie.id,
-    title: movie.title,
-    poster: movie.posterUrl || "",
-    genre:
-      typeof movie.genre === "string"
-        ? movie.genre.split(",").map((g: string) => g.trim())
-        : Array.isArray(movie.genre)
-          ? movie.genre
-          : [],
-    duration: movie.durationMinutes ? `${movie.durationMinutes} phút` : "",
-    releaseDate: movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('en-GB') : "",
-    trailerUrl: movie.trailerUrl || "",
+  // ✅ Chuẩn hóa dữ liệu từ backend (null-safe)
+  const normalizeMovie = (raw: any): Movie => ({
+    id: String(raw?.id ?? ""),
+    title: String(raw?.title ?? "").trim() || "Chưa có tiêu đề",
+    poster: String(raw?.posterUrl ?? "").trim(),
+    genre: splitCommaList(raw?.genre),
+    duration: raw?.durationMinutes ? `${raw.durationMinutes} phút` : "",
+    releaseDate: formatDateVi(raw?.releaseDate),
+    trailerUrl: String(raw?.trailerUrl ?? "").trim(),
+    releaseDateISO: raw?.releaseDate ? String(raw.releaseDate) : undefined,
+    isActive: typeof raw?.isActive === "boolean" ? raw.isActive : undefined,
   });
 
   const fetchMovies = async () => {
     try {
-      const data = await movieService.getAllMovies(true);
+      // Lấy cả phim đang chiếu & sắp chiếu
+      const data = await movieService.getAllMovies(false);
 
       const normalizedMovies = (data || []).map(normalizeMovie);
 
-      setMovies(normalizedMovies);
+      const upcomingMovies = normalizedMovies
+        .filter((m) => isUpcomingRelease(m.releaseDateISO))
+        .sort((a, b) => {
+          const da = new Date(a.releaseDateISO || 0).getTime();
+          const db = new Date(b.releaseDateISO || 0).getTime();
+          return da - db; // sắp tới gần nhất trước
+        });
 
-      if (normalizedMovies.length > 0) {
-        setFeaturedMovie(normalizedMovies[0]);
-      }
+      const nowShowingMovies = normalizedMovies
+        .filter((m) => !isUpcomingRelease(m.releaseDateISO) && (m.isActive ?? true))
+        .sort((a, b) => {
+          const da = new Date(a.releaseDateISO || 0).getTime();
+          const db = new Date(b.releaseDateISO || 0).getTime();
+          return db - da; // mới nhất trước
+        });
+
+      setUpcoming(upcomingMovies);
+      setNowShowing(nowShowingMovies);
+
+      const featuredList = [...nowShowingMovies, ...upcomingMovies].slice(0, 10);
+      setFeaturedMovie(featuredList[0] ?? null);
     } catch (error) {
       console.error("Error fetching movies", error);
     } finally {
@@ -65,13 +80,14 @@ export function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SEO title="Trang Chủ" />
+      <Seo title="Trang Chủ" />
       {/* Hero Section */}
       <section className="relative h-[80vh] w-full overflow-hidden bg-background">
         {featuredMovie.trailerUrl && getYouTubeEmbedUrl(featuredMovie.trailerUrl) ? (
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <iframe
               src={getYouTubeEmbedUrl(featuredMovie.trailerUrl)!}
+              title={`Trailer ${featuredMovie.title}`}
               className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-[80vh] min-w-[142.22vh] -translate-x-1/2 -translate-y-1/2 opacity-100"
               allow="autoplay; encrypted-media"
             />
@@ -89,10 +105,10 @@ export function HomePage() {
           <div className="max-w-2xl space-y-6 z-10 flex-1">
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-primary/20 px-3 py-1 text-xs font-medium text-primary border border-primary/20 backdrop-blur-md">
-                Đang chiếu
+                Nổi bật
               </span>
               <span className="text-secondary-foreground/90 text-sm font-medium">
-                {featuredMovie.genre.join(" • ")}
+                {(featuredMovie.genre?.length ? featuredMovie.genre : ["Chưa rõ thể loại"]).join(" • ")}
               </span>
             </div>
 
@@ -152,16 +168,38 @@ export function HomePage() {
       <section className="container py-16 space-y-10">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Đang chiếu</h2>
-          <Button variant="link" className="text-primary">
-            Xem tất cả
+          <Button asChild variant="link" className="text-primary">
+            <Link to="/movies?filter=now">Xem tất cả</Link>
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5">
-          {movies.map((movie) => (
+          {nowShowing.map((movie) => (
             <MovieCard key={movie.id} movie={movie} />
           ))}
         </div>
+      </section>
+
+      {/* Upcoming Movies Grid */}
+      <section className="container pb-20 space-y-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Sắp chiếu</h2>
+          <Button asChild variant="link" className="text-primary">
+            <Link to="/movies?filter=upcoming">Xem tất cả</Link>
+          </Button>
+        </div>
+
+        {upcoming.length > 0 ? (
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5">
+            {upcoming.map((movie) => (
+              <MovieCard key={movie.id} movie={movie} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-16 text-center text-muted-foreground rounded-2xl border border-dashed border-white/10 bg-card/20">
+            Chưa có phim sắp chiếu.
+          </div>
+        )}
       </section>
     </div>
   );

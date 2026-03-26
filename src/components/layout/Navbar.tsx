@@ -52,9 +52,6 @@ export function Navbar() {
           <Link to="/theaters" className="text-foreground/80 hover:text-primary transition-colors">
             Rạp chiếu
           </Link>
-          <Link to="/news" className="text-foreground/80 hover:text-primary transition-colors">
-            Tin tức
-          </Link>
         </nav>
 
         {/* Right Section (Auth / Profile) - takes up 1 part of space */}
