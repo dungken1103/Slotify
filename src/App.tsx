@@ -10,6 +10,9 @@ import { BookingPage } from "./pages/BookingPage";
 import { PaymentPage } from "./pages/PaymentPage";
 import { BookingSuccessPage } from "./pages/BookingSuccessPage";
 import { MyBookingsPage } from "./pages/MyBookings";
+import { CinemasPage } from "./pages/CinemasPage";
+import { CinemaDetailPage } from "./pages/CinemaDetailPage";
+import { MoviesPage } from "./pages/MoviesPage";
 
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
@@ -32,7 +35,9 @@ function App() {
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
-            <Route path="/movies" element={<HomePage />} />
+            <Route path="/movies" element={<MoviesPage />} />
+            <Route path="/theaters" element={<CinemasPage />} />
+            <Route path="/theaters/:cinemaId" element={<CinemaDetailPage />} />
             <Route path="/movie/:id" element={<MovieDetailPage />} />
             {/* Add other main routes here */}
 
