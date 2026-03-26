@@ -41,6 +41,9 @@ export function MoviesPage() {
         .map((m) => m.id)
     );
     const featuredIds = new Set(topBookedMovieIds.length > 0 ? topBookedMovieIds : Array.from(fallbackFeaturedIds));
+    const rankByFeaturedId = new Map(
+      (topBookedMovieIds.length > 0 ? topBookedMovieIds : Array.from(fallbackFeaturedIds)).map((id, idx) => [id, idx])
+    );
 
     const filtered = movies.filter((movie) => {
       const matchesQuery =
@@ -52,9 +55,20 @@ export function MoviesPage() {
 
       if (activeFilter === "now") return !isUpcomingRelease(movie.releaseDateISO) && (movie.isActive ?? true);
       if (activeFilter === "upcoming") return isUpcomingRelease(movie.releaseDateISO);
-      if (activeFilter === "featured") return featuredIds.has(movie.id);
+      if (activeFilter === "featured") {
+        // Featured = phim đang chiếu, được sắp theo độ "hot" từ booking.
+        return !isUpcomingRelease(movie.releaseDateISO) && (movie.isActive ?? true) && featuredIds.has(movie.id);
+      }
       return true;
     });
+
+    if (activeFilter === "featured" && rankByFeaturedId.size > 0) {
+      // topBookedMovieIds đã được trả về theo thứ tự giảm dần score (booking/hot) nên index nhỏ hơn => đứng trước.
+      setFilteredMovies(
+        [...filtered].sort((a, b) => (rankByFeaturedId.get(a.id) ?? 9999) - (rankByFeaturedId.get(b.id) ?? 9999))
+      );
+      return;
+    }
 
     setFilteredMovies(filtered);
   }, [searchQuery, movies, activeFilter, topBookedMovieIds]);

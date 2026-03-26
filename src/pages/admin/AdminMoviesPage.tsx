@@ -17,6 +17,7 @@ import { TagInput } from "../../components/ui/tag-input";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { isUpcomingRelease } from "../../lib/utils";
 
 export function AdminMoviesPage() {
   const [movies, setMovies] = useState<MovieResponse[]>([]);
@@ -227,9 +228,30 @@ export function AdminMoviesPage() {
                     <td className="px-6 py-4">{movie.durationMinutes} phút</td>
                     <td className="px-6 py-4">{new Date(movie.releaseDate).toLocaleDateString('en-GB')}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${movie.isActive ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                        {movie.isActive ? 'Đang chiếu' : 'Ngừng chiếu'}
-                      </span>
+                      {(() => {
+                        const upcoming = movie.isActive && isUpcomingRelease(movie.releaseDate);
+                        if (!movie.isActive) {
+                          return (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
+                              Ngừng chiếu
+                            </span>
+                          );
+                        }
+
+                        if (upcoming) {
+                          return (
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Sắp chiếu
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500 border border-green-500/20">
+                            Đang chiếu
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -320,7 +342,13 @@ export function AdminMoviesPage() {
                   <div className="relative h-24 w-16 rounded overflow-hidden shadow-sm border border-border group">
                     <img src={formData.posterUrl} alt="Poster" className="h-full w-full object-cover" />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <button type="button" onClick={handleRemoveImage} className="text-red-500 bg-red-500/10 p-1.5 rounded-full hover:bg-red-500/20">
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        title="Xóa poster"
+                        aria-label="Xóa poster"
+                        className="text-red-500 bg-red-500/10 p-1.5 rounded-full hover:bg-red-500/20"
+                      >
                         <X className="h-4 w-4" />
                       </button>
                     </div>

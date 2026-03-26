@@ -1,6 +1,7 @@
 import { api } from "../middlewares/interceptors";
 import type { ApiResponse } from "../types/api";
 import type { BookingRequest, BookingResponse, SeatAvailabilityResponse } from "../types/booking";
+import type { AdminDashboardResponse } from "../types/adminDashboard";
 
 export const bookingService = {
   async getAvailableSeats(showtimeId: string) {
@@ -26,5 +27,12 @@ export const bookingService = {
   async sendMyConfirmationEmail(id: string) {
     const res = await api.post<ApiResponse<object>>(`/Booking/${id}/send-my-confirmation-email`);
     return res.data;
+  },
+
+  async getAdminDashboard(recentLimit: number = 6) {
+    const res = await api.get<ApiResponse<AdminDashboardResponse>>("/Booking/admin/dashboard", {
+      params: { recentLimit },
+    });
+    return res.data.data;
   }
 };

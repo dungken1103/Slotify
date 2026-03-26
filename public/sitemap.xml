@@ -31,6 +31,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://slotify232.onrender.com/movie/d76cabc7-9ac5-42a7-a539-ab3679f3f72d</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://slotify232.onrender.com/movie/4cdb2143-fae6-4aa9-9d12-ae867567ad8e</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
