@@ -20,6 +20,7 @@ export function PaymentPage() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState<BookingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasRequestedConfirmationEmail, setHasRequestedConfirmationEmail] = useState(false);
 
   useEffect(() => {
     if (bookingId) {
@@ -29,7 +30,15 @@ export function PaymentPage() {
       const interval = setInterval(async () => {
         try {
           const data = await bookingService.getBookingDetails(bookingId);
-          if (data && data.status === "Paid") {
+          if (data?.status === "Paid") {
+            if (!hasRequestedConfirmationEmail) {
+              try {
+                await bookingService.sendMyConfirmationEmail(bookingId);
+                setHasRequestedConfirmationEmail(true);
+              } catch (error) {
+                console.error("Send confirmation email fallback error", error);
+              }
+            }
             clearInterval(interval);
             navigate(`/booking-success/${bookingId}`);
           }
@@ -40,7 +49,7 @@ export function PaymentPage() {
 
       return () => clearInterval(interval);
     }
-  }, [bookingId, navigate]);
+  }, [bookingId, navigate, hasRequestedConfirmationEmail]);
 
   const fetchBookingDetails = async (id: string) => {
     try {
@@ -70,7 +79,7 @@ export function PaymentPage() {
     );
   }
 
-  const transactionContent = `slotify${booking.id.replace(/-/g, "")}`;
+  const transactionContent = `slotify${booking.id.replaceAll("-", "")}`;
   const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.BANK_ID}-${BANK_CONFIG.ACCOUNT_NO}-${BANK_CONFIG.TEMPLATE}.png?amount=${booking.totalAmount}&addInfo=${transactionContent}&accountName=${BANK_CONFIG.ACCOUNT_NAME}`;
 
   return (

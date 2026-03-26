@@ -23,6 +23,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "../../components/ui/dialog";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 
 export function AdminShowtimesPage() {
     const [showtimes, setShowtimes] = useState<Showtime[]>([]);
@@ -36,7 +37,9 @@ export function AdminShowtimesPage() {
     // Dialog state
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [editingShowtime, setEditingShowtime] = useState<Showtime | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     const [selectedCinemaId, setSelectedCinemaId] = useState<string>("");
 
@@ -69,6 +72,8 @@ export function AdminShowtimesPage() {
         movieId: "",
         auditoriumId: ""
     });
+    const [pickerDate, setPickerDate] = useState("");
+    const [pickerTime, setPickerTime] = useState("");
 
     // Responsive date paging
     const getVisibleCount = useCallback(() => {
@@ -165,6 +170,64 @@ export function AdminShowtimesPage() {
         setFilterDate(null);
     };
 
+    const toLocalDateInput = (d: Date) => {
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - offset * 60 * 1000);
+        return localDate.toISOString().slice(0, 10);
+    };
+
+    const toLocalTimeInput = (d: Date) => {
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - offset * 60 * 1000);
+        return localDate.toISOString().slice(11, 16);
+    };
+
+    const buildLocalDateTime = (date: string, time: string) => {
+        if (!date || !time) return "";
+        return `${date}T${time}`;
+    };
+    
+    const setStartTimeFromPicker = (date: string, time: string) => {
+        setPickerDate(date);
+        setPickerTime(time);
+        const dt = buildLocalDateTime(date, time);
+        setFormData(prev => ({ ...prev, startTime: dt }));
+    };
+
+    const selectedMovie = useMemo(
+        () => movies.find((m) => m.id === formData.movieId) ?? null,
+        [movies, formData.movieId]
+    );
+
+    const estimatedEndTime = useMemo(() => {
+        if (!formData.startTime || !selectedMovie?.durationMinutes) return null;
+        const start = new Date(formData.startTime);
+        if (Number.isNaN(start.getTime())) return null;
+        return new Date(start.getTime() + selectedMovie.durationMinutes * 60 * 1000);
+    }, [formData.startTime, selectedMovie?.durationMinutes]);
+
+    const validateShowtimeConflict = (startAt: string) => {
+        if (!startAt || !formData.auditoriumId || !selectedMovie?.durationMinutes) return null;
+        const start = new Date(startAt);
+        if (Number.isNaN(start.getTime())) return "Thời gian bắt đầu không hợp lệ.";
+        const end = new Date(start.getTime() + selectedMovie.durationMinutes * 60 * 1000);
+
+        const conflict = showtimes.find((s) => {
+            if (editingShowtime && s.id === editingShowtime.id) return false;
+            if (s.auditoriumId !== formData.auditoriumId) return false;
+
+            const otherStart = new Date(s.startTime);
+            const otherEnd = new Date(s.endTime);
+            if (Number.isNaN(otherStart.getTime()) || Number.isNaN(otherEnd.getTime())) return false;
+
+            // overlap when [start, end) intersects [otherStart, otherEnd)
+            return start < otherEnd && end > otherStart;
+        });
+
+        if (!conflict) return null;
+        return `Conflict lịch chiếu tại "${conflict.cinemaName} - ${conflict.auditoriumName}" (${formatTime(conflict.startTime)} - ${formatTime(conflict.endTime)}).`;
+    };
+
     const handleOpenDialog = (showtime?: Showtime) => {
         if (showtime) {
             setEditingShowtime(showtime);
@@ -176,6 +239,7 @@ export function AdminShowtimesPage() {
                 return d.toISOString().slice(0, 16);
             };
 
+            const startLocal = formatForInput(showtime.startTime);
             setFormData({
                 startTime: formatForInput(showtime.startTime),
                 standardPrice: showtime.standardPrice,
@@ -184,17 +248,26 @@ export function AdminShowtimesPage() {
                 movieId: showtime.movieId,
                 auditoriumId: showtime.auditoriumId
             });
+            const [datePart, timePart] = startLocal.split("T");
+            setPickerDate(datePart ?? "");
+            setPickerTime((timePart ?? "").slice(0, 5));
         } else {
             setEditingShowtime(null);
             setSelectedCinemaId("");
+            const nextHalfHour = new Date();
+            nextHalfHour.setMinutes(nextHalfHour.getMinutes() < 30 ? 30 : 60, 0, 0);
+            const defaultDate = toLocalDateInput(nextHalfHour);
+            const defaultTime = toLocalTimeInput(nextHalfHour);
             setFormData({
-                startTime: "",
+                startTime: `${defaultDate}T${defaultTime}`,
                 standardPrice: 50000,
                 vipPrice: 70000,
                 couplePrice: 120000,
                 movieId: "",
                 auditoriumId: ""
             });
+            setPickerDate(defaultDate);
+            setPickerTime(defaultTime);
         }
         setIsDialogOpen(true);
     };
@@ -204,9 +277,24 @@ export function AdminShowtimesPage() {
 
         try {
             setIsSubmitting(true);
+            const localDateTime = formData.startTime || buildLocalDateTime(pickerDate, pickerTime);
+            if (!localDateTime) {
+                setError("Vui lòng chọn đầy đủ ngày và giờ chiếu.");
+                return;
+            }
+            if (Number.isNaN(new Date(localDateTime).getTime())) {
+                setError("Thời gian bắt đầu không hợp lệ.");
+                return;
+            }
+            const conflictMessage = validateShowtimeConflict(localDateTime);
+            if (conflictMessage) {
+                setError(conflictMessage);
+                return;
+            }
             const payload: ShowtimeRequest = {
                 ...formData,
-                startTime: new Date(formData.startTime).toISOString(),
+                // Keep local datetime value to avoid UTC shift (e.g. 09:00 -> 02:00)
+                startTime: localDateTime,
             };
 
             if (editingShowtime) {
@@ -227,16 +315,19 @@ export function AdminShowtimesPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm("Bạn có chắc chắn muốn xóa lịch chiếu này không? Hành động này không thể hoàn tác.")) {
-            try {
-                await ShowtimeService.delete(id);
-                const res = await ShowtimeService.getAll();
-                if (res.succeeded) setShowtimes(res.data ?? []);
-            } catch (err: any) {
-                console.error("Lỗi khi xóa lịch chiếu", err);
-                alert(err?.response?.data?.message || "Không thể xóa lịch chiếu này.");
-            }
+    const handleDelete = async () => {
+        if (!confirmDeleteId) return;
+        try {
+            setIsDeleting(true);
+            await ShowtimeService.delete(confirmDeleteId);
+            const res = await ShowtimeService.getAll();
+            if (res.succeeded) setShowtimes(res.data ?? []);
+        } catch (err: any) {
+            console.error("Lỗi khi xóa lịch chiếu", err);
+            alert(err?.response?.data?.message || "Không thể xóa lịch chiếu này.");
+        } finally {
+            setIsDeleting(false);
+            setConfirmDeleteId(null);
         }
     };
 
@@ -490,7 +581,7 @@ export function AdminShowtimesPage() {
                                             variant="outline"
                                             size="sm"
                                             className="h-8 gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            onClick={() => handleDelete(showtime.id)}
+                                            onClick={() => setConfirmDeleteId(showtime.id)}
                                         >
                                             <Trash2 className="h-3.5 w-3.5" /> Xóa
                                         </Button>
@@ -576,15 +667,38 @@ export function AdminShowtimesPage() {
 
                             {/* Thời gian */}
                             <div className="grid grid-cols-4 items-center gap-4 mt-2">
-                                <Label htmlFor="startTime" className="text-right whitespace-nowrap">Bắt đầu <span className="text-destructive">*</span></Label>
-                                <Input
-                                    id="startTime"
-                                    type="datetime-local"
-                                    value={formData.startTime}
-                                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                                    className="col-span-3"
-                                    required
-                                />
+                                <Label className="text-right whitespace-nowrap">Bắt đầu <span className="text-destructive">*</span></Label>
+                                <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <Input
+                                        id="startDate"
+                                        type="date"
+                                        value={pickerDate}
+                                        onChange={(e) => {
+                                            const date = e.target.value;
+                                            setStartTimeFromPicker(date, pickerTime);
+                                        }}
+                                        required
+                                    />
+                                    <Input
+                                        id="startTime"
+                                        type="time"
+                                        step="300"
+                                        value={pickerTime}
+                                        onChange={(e) => {
+                                            const time = e.target.value;
+                                            setStartTimeFromPicker(pickerDate, time);
+                                        }}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4 -mt-1">
+                                <span />
+                                <p className="col-span-3 text-xs text-muted-foreground">
+                                    {estimatedEndTime
+                                        ? `Dự kiến kết thúc: ${new Date(estimatedEndTime).toLocaleDateString("vi-VN")} ${formatTime(estimatedEndTime.toISOString())}`
+                                        : "Chọn phim + thời gian để tính giờ kết thúc."}
+                                </p>
                             </div>
 
                             {/* Giá vé */}
@@ -641,6 +755,18 @@ export function AdminShowtimesPage() {
                     </form>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={Boolean(confirmDeleteId)}
+                title="Xóa lịch chiếu"
+                description="Bạn có chắc chắn muốn xóa lịch chiếu này không? Hành động này không thể hoàn tác."
+                confirmText="Xóa lịch chiếu"
+                variant="destructive"
+                loading={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmDeleteId(null);
+                }}
+                onConfirm={handleDelete}
+            />
         </div>
     );
 }

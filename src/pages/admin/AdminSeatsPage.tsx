@@ -10,6 +10,7 @@ import { SeatService, seatTypeToValue, type Seat, type SeatRequest, type SeatTyp
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { cn } from "../../lib/utils";
@@ -69,6 +70,8 @@ export function AdminSeatsPage() {
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingSeat, setEditingSeat] = useState<Seat | null>(null);
+    const [confirmDeleteSeat, setConfirmDeleteSeat] = useState<Seat | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const seatForm = useForm<SeatFormValues>({
         resolver: zodResolver(seatSchema),
@@ -208,14 +211,12 @@ export function AdminSeatsPage() {
         }
     });
 
-    const handleDeleteSeat = async (seat: Seat) => {
-        if (!window.confirm(`Xóa ghế ${seat.row}${seat.number}? Hành động này không thể hoàn tác.`)) {
-            return;
-        }
-
+    const handleDeleteSeat = async () => {
+        if (!confirmDeleteSeat) return;
         try {
+            setIsDeleting(true);
             setError(null);
-            const response = await SeatService.delete(seat.id);
+            const response = await SeatService.delete(confirmDeleteSeat.id);
             if (!response.succeeded) {
                 setError(response.message || "Không thể xóa ghế.");
                 return;
@@ -224,6 +225,9 @@ export function AdminSeatsPage() {
             await fetchData();
         } catch (err) {
             setError(getApiErrorMessage(err, "Không thể xóa ghế."));
+        } finally {
+            setIsDeleting(false);
+            setConfirmDeleteSeat(null);
         }
     };
 
@@ -395,7 +399,7 @@ export function AdminSeatsPage() {
                                                             <Button variant="ghost" size="icon" className={cn("h-7 w-7", seat.isActive ? "text-amber-600" : "text-green-600")} onClick={() => toggleSeatStatus(seat)} title={seat.isActive ? "Vô hiệu hóa ghế" : "Kích hoạt ghế"}>
                                                                 <Power className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteSeat(seat)} title={`Xóa ghế ${seat.row}${seat.number}`}>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setConfirmDeleteSeat(seat)} title={`Xóa ghế ${seat.row}${seat.number}`}>
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </div>
@@ -472,6 +476,18 @@ export function AdminSeatsPage() {
                     </form>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={Boolean(confirmDeleteSeat)}
+                title="Xóa ghế"
+                description={`Xóa ghế ${confirmDeleteSeat?.row ?? ""}${confirmDeleteSeat?.number ?? ""}? Hành động này không thể hoàn tác.`}
+                confirmText="Xóa ghế"
+                variant="destructive"
+                loading={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmDeleteSeat(null);
+                }}
+                onConfirm={handleDeleteSeat}
+            />
         </div>
     );
 }

@@ -3,12 +3,14 @@ import { UserService } from "../../services/user.service";
 import type { User } from "../../services/user.service";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Loader2, Users, ShieldCheck, Mail, Phone, Calendar } from "lucide-react";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 
 export function AdminUsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; newRole: string } | null>(null);
 
     const fetchData = async () => {
         try {
@@ -32,8 +34,6 @@ export function AdminUsersPage() {
     }, []);
 
     const handleChangeRole = async (userId: string, newRole: string) => {
-        if (!window.confirm(`Bạn có chắc muốn cấp quyền ${newRole} cho người dùng này?`)) return;
-
         try {
             setUpdatingId(userId);
             const res = await UserService.changeRole(userId, newRole);
@@ -48,6 +48,7 @@ export function AdminUsersPage() {
             alert(err?.response?.data?.message || "Lỗi khi cập nhật quyền.");
         } finally {
             setUpdatingId(null);
+            setPendingRoleChange(null);
         }
     };
 
@@ -165,7 +166,7 @@ export function AdminUsersPage() {
                                                     <select
                                                         className="w-[120px] h-8 text-xs rounded-md border border-input bg-background px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                                                         value={user.role}
-                                                        onChange={(e) => handleChangeRole(user.id, e.target.value)}
+                                                        onChange={(e) => setPendingRoleChange({ userId: user.id, newRole: e.target.value })}
                                                         disabled={updatingId === user.id}
                                                     >
                                                         <option value="USER">Thành viên</option>
@@ -181,6 +182,21 @@ export function AdminUsersPage() {
                     )}
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={Boolean(pendingRoleChange)}
+                title="Xác nhận đổi quyền"
+                description={`Bạn có chắc muốn cấp quyền ${pendingRoleChange?.newRole ?? ""} cho người dùng này?`}
+                confirmText="Xác nhận"
+                loading={Boolean(updatingId)}
+                onOpenChange={(open) => {
+                    if (!open) setPendingRoleChange(null);
+                }}
+                onConfirm={() => {
+                    if (pendingRoleChange) {
+                        handleChangeRole(pendingRoleChange.userId, pendingRoleChange.newRole);
+                    }
+                }}
+            />
         </div>
     );
 }

@@ -21,5 +21,10 @@ export const bookingService = {
   async getMyBookings() {
     const res = await api.get<ApiResponse<BookingResponse[]>>('/Booking/my-bookings');
     return res.data.data;
+  },
+
+  async sendMyConfirmationEmail(id: string) {
+    const res = await api.post<ApiResponse<object>>(`/Booking/${id}/send-my-confirmation-email`);
+    return res.data;
   }
 };

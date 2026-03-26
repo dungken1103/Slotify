@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { VnAddressSelect } from "../../components/ui/vn-address-select";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { cn } from "../../lib/utils";
 import { fieldErrorClassName, getApiErrorMessage } from "./adminVenueHelpers";
 
@@ -40,6 +41,8 @@ export function AdminCinemasPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingCinema, setEditingCinema] = useState<Cinema | null>(null);
+    const [confirmDeleteCinema, setConfirmDeleteCinema] = useState<Cinema | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<CinemaFormValues>({
         resolver: zodResolver(cinemaSchema),
@@ -114,14 +117,12 @@ export function AdminCinemasPage() {
         }
     });
 
-    const handleDelete = async (cinema: Cinema) => {
-        if (!window.confirm(`Xóa rạp "${cinema.name}"? Hành động này không thể hoàn tác.`)) {
-            return;
-        }
-
+    const handleDelete = async () => {
+        if (!confirmDeleteCinema) return;
         try {
+            setIsDeleting(true);
             setError(null);
-            const response = await CinemaService.delete(cinema.id);
+            const response = await CinemaService.delete(confirmDeleteCinema.id);
             if (!response.succeeded) {
                 setError(response.message || "Không thể xóa rạp.");
                 return;
@@ -130,6 +131,9 @@ export function AdminCinemasPage() {
             await fetchCinemas();
         } catch (err) {
             setError(getApiErrorMessage(err, "Không thể xóa rạp."));
+        } finally {
+            setIsDeleting(false);
+            setConfirmDeleteCinema(null);
         }
     };
 
@@ -222,7 +226,7 @@ export function AdminCinemasPage() {
                                         <Button variant="outline" size="icon" className={cn("h-8 w-8", cinema.isActive ? "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10" : "text-green-500 hover:text-green-600 hover:bg-green-500/10")} onClick={() => toggleStatus(cinema)} title={cinema.isActive ? "Tạm ngưng" : "Kích hoạt"}>
                                             <Power className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(cinema)} title="Xóa rạp">
+                                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmDeleteCinema(cinema)} title="Xóa rạp">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -272,6 +276,18 @@ export function AdminCinemasPage() {
                     </form>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={Boolean(confirmDeleteCinema)}
+                title="Xóa cụm rạp"
+                description={`Xóa rạp "${confirmDeleteCinema?.name ?? ""}"? Hành động này không thể hoàn tác.`}
+                confirmText="Xóa rạp"
+                variant="destructive"
+                loading={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmDeleteCinema(null);
+                }}
+                onConfirm={handleDelete}
+            />
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { Search, Film } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { formatDateVi, isUpcomingRelease, splitCommaList } from "../lib/utils";
 import { useLocation } from "react-router-dom";
+import { movieRankingService } from "../services/movieRanking.service";
 
 export function MoviesPage() {
   const location = useLocation();
@@ -15,6 +16,7 @@ export function MoviesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "now" | "upcoming" | "featured">("all");
+  const [topBookedMovieIds, setTopBookedMovieIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchMovies();
@@ -31,13 +33,14 @@ export function MoviesPage() {
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
 
-    const featuredIds = new Set(
+    const fallbackFeaturedIds = new Set(
       [...movies]
         .filter((m) => !isUpcomingRelease(m.releaseDateISO) && (m.isActive ?? true))
         .sort((a, b) => (new Date(b.releaseDateISO || 0).getTime() - new Date(a.releaseDateISO || 0).getTime()))
         .slice(0, 10)
         .map((m) => m.id)
     );
+    const featuredIds = new Set(topBookedMovieIds.length > 0 ? topBookedMovieIds : Array.from(fallbackFeaturedIds));
 
     const filtered = movies.filter((movie) => {
       const matchesQuery =
@@ -54,7 +57,7 @@ export function MoviesPage() {
     });
 
     setFilteredMovies(filtered);
-  }, [searchQuery, movies, activeFilter]);
+  }, [searchQuery, movies, activeFilter, topBookedMovieIds]);
 
   const normalizeMovie = (raw: any): Movie => ({
     id: String(raw?.id ?? ""),
@@ -71,10 +74,14 @@ export function MoviesPage() {
   const fetchMovies = async () => {
     try {
       setLoading(true);
-      const data = await movieService.getAllMovies(false);
+      const [data, topBookedIds] = await Promise.all([
+        movieService.getAllMovies(false),
+        movieRankingService.getTopBookedMovieIds(10),
+      ]);
       const normalizedMovies = (data || []).map(normalizeMovie);
       setMovies(normalizedMovies);
       setFilteredMovies(normalizedMovies);
+      setTopBookedMovieIds(topBookedIds);
     } catch (error) {
       console.error("Error fetching movies", error);
     } finally {

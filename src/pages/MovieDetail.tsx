@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Clock, Calendar, ChevronLeft, Building2, Ticket, Play } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Clock, Calendar, ChevronLeft, Building2, Ticket, Play, MapPin, Armchair } from "lucide-react";
 import { movieService } from "../services/movie.service";
 import { ShowtimeService } from "../services/showtime.service";
 import type { Showtime } from "../services/showtime.service";
@@ -27,11 +27,13 @@ interface MovieDetail {
 
 export function MovieDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCinema, setFilterCinema] = useState<string>("");
   const [filterDate, setFilterDate] = useState<Date | null>(null);
+  const [selectedShowtimeId, setSelectedShowtimeId] = useState<string>("");
 
   const cinemaOptions = useMemo(() => {
     const set = new Set<string>();
@@ -50,6 +52,11 @@ export function MovieDetailPage() {
       return true;
     });
   }, [showtimes, filterCinema, filterDate]);
+
+  const selectedShowtime = useMemo(
+    () => showtimes.find((s) => s.id === selectedShowtimeId) ?? null,
+    [showtimes, selectedShowtimeId]
+  );
 
   // Date paging like admin page
   const availableDates = useMemo(() => {
@@ -88,6 +95,7 @@ export function MovieDetailPage() {
     setDateStartIndex(0);
     setFilterDate(null);
     setFilterCinema("");
+    setSelectedShowtimeId("");
   }, [id]);
 
   const visibleDates = useMemo(
@@ -111,7 +119,11 @@ export function MovieDetailPage() {
   const fetchShowtimes = async (movieId: string) => {
     try {
       const response = await ShowtimeService.getByMovie(movieId);
-      setShowtimes(response.data || []);
+      const list = response.data || [];
+      setShowtimes(list);
+      if (list.length > 0) {
+        setSelectedShowtimeId(list[0].id);
+      }
     } catch (error) {
       console.error("Error fetching showtimes", error);
     }
@@ -427,18 +439,27 @@ export function MovieDetailPage() {
                                 : "--:--";
                               const price = formatCurrency(st.standardPrice ?? 0);
                               const sub = st.auditoriumName || "Chưa rõ phòng";
+                              const isSelected = selectedShowtimeId === st.id;
                               return (
-                                <Link key={st.id} to={`/booking/${st.id}`} className="group">
-                                  <Button
-                                    variant="outline"
-                                    className="h-auto rounded-xl px-4 py-2 flex flex-col items-start gap-1 border-white/10 hover:border-primary/50 hover:bg-primary/5"
-                                  >
+                                <button
+                                  key={st.id}
+                                  type="button"
+                                  onClick={() => setSelectedShowtimeId(st.id)}
+                                  className={`group rounded-xl border px-4 py-3 text-left transition-all min-w-[160px] ${
+                                    isSelected
+                                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                                      : "border-white/10 bg-background/40 hover:border-primary/50 hover:bg-primary/5"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-3">
                                     <span className="text-base font-bold text-foreground">{timeLabel}</span>
-                                    <span className="text-[11px] text-muted-foreground">
-                                      {sub} • <span className="text-primary font-semibold">{price}</span>
-                                    </span>
-                                  </Button>
-                                </Link>
+                                    <span className="text-xs font-semibold text-primary">{price}</span>
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <Armchair className="h-3 w-3" />
+                                    <span>{sub}</span>
+                                  </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -487,10 +508,10 @@ export function MovieDetailPage() {
            <div className="rounded-xl border border-border/50 bg-card p-6 shadow-lg sticky top-24">
               <h3 className="text-xl font-bold mb-2">Đặt vé</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Chọn cụm rạp và ngày chiếu, sau đó bấm giờ chiếu để đặt vé.
+                Chọn cụm rạp, ngày chiếu và suất chiếu phù hợp.
               </p>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pb-6 border-b border-border/50">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Cụm rạp</span>
                   <span className="font-medium text-right line-clamp-1">{filterCinema || "Tất cả"}</span>
@@ -505,25 +526,56 @@ export function MovieDetailPage() {
                   <span className="text-muted-foreground">Suất chiếu</span>
                   <span className="font-medium">{filteredShowtimes.length}</span>
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Thời lượng</span>
+                  <span className="font-medium">{movie.duration}</span>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <p className="text-xs uppercase tracking-wide text-primary/90 font-semibold">Suất chiếu đã chọn</p>
+                {selectedShowtime ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-primary/80" />
+                      <span className="font-medium">{selectedShowtime.cinemaName || "Chưa rõ rạp"}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Giờ chiếu</span>
+                      <span className="font-semibold">
+                        {new Date(selectedShowtime.startTime).toLocaleDateString("vi-VN")} •{" "}
+                        {new Date(selectedShowtime.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Phòng</span>
+                      <span className="font-medium">{selectedShowtime.auditoriumName || "Chưa rõ phòng"}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Giá từ</span>
+                      <span className="font-bold text-primary">{formatCurrency(selectedShowtime.standardPrice ?? 0)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Vui lòng chọn một suất chiếu bên trái.</p>
+                )}
               </div>
 
               <Button
                 className="w-full gap-2 py-6 text-lg mt-6"
-                onClick={() => document.getElementById("showtimes")?.scrollIntoView({ behavior: "smooth" })}
+                disabled={!selectedShowtime}
+                onClick={() => {
+                  if (selectedShowtime) {
+                    navigate(`/booking/${selectedShowtime.id}`);
+                  } else {
+                    document.getElementById("showtimes")?.scrollIntoView({ behavior: "smooth" });
+                  }
+                }}
               >
                 <Ticket className="h-5 w-5" /> Chọn suất chiếu
               </Button>
               
-              <div className="mt-8 space-y-4 pt-8 border-t border-border/50 text-sm">
-                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Thời lượng</span>
-                    <span className="font-medium">{movie.duration}</span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ngôn ngữ</span>
-                    <span className="font-medium">Tiếng Anh (Phụ đề)</span>
-                 </div>
-              </div>
+              
            </div>
         </div>
       </div>

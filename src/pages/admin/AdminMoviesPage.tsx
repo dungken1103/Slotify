@@ -16,6 +16,7 @@ import { UploadService } from "../../services/upload.service";
 import { TagInput } from "../../components/ui/tag-input";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 
 export function AdminMoviesPage() {
   const [movies, setMovies] = useState<MovieResponse[]>([]);
@@ -23,7 +24,9 @@ export function AdminMoviesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const initialFormState: MovieRequest = {
     title: "",
@@ -146,13 +149,17 @@ export function AdminMoviesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa phim này không?")) return;
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await movieService.deleteMovie(id);
+      setIsDeleting(true);
+      await movieService.deleteMovie(confirmDeleteId);
       await fetchMovies();
     } catch (error) {
       console.error("Error deleting movie", error);
+    } finally {
+      setIsDeleting(false);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -232,7 +239,7 @@ export function AdminMoviesPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(movie)}>
                           <Edit2 className="h-4 w-4 text-primary" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(movie.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setConfirmDeleteId(movie.id)}>
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
@@ -362,6 +369,19 @@ export function AdminMoviesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(confirmDeleteId)}
+        title="Xóa phim"
+        description="Bạn có chắc chắn muốn xóa phim này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa phim"
+        variant="destructive"
+        loading={isDeleting}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteId(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

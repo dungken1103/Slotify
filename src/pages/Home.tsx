@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { movieService } from "../services/movie.service";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { formatDateVi, getYouTubeEmbedUrl, isUpcomingRelease, splitCommaList } from "../lib/utils";
+import { movieRankingService } from "../services/movieRanking.service";
 
 export function HomePage() {
   const [nowShowing, setNowShowing] = useState<Movie[]>([]);
@@ -57,7 +58,16 @@ export function HomePage() {
       setUpcoming(upcomingMovies);
       setNowShowing(nowShowingMovies);
 
-      const featuredList = [...nowShowingMovies, ...upcomingMovies].slice(0, 10);
+      const topBookedIds = await movieRankingService.getTopBookedMovieIds(10);
+      const rank = new Map(topBookedIds.map((id, idx) => [id, idx]));
+
+      const featuredByBooking = nowShowingMovies
+        .filter((m) => rank.has(m.id))
+        .sort((a, b) => (rank.get(a.id) ?? 9999) - (rank.get(b.id) ?? 9999));
+
+      const featuredList = featuredByBooking.length > 0
+        ? featuredByBooking
+        : [...nowShowingMovies, ...upcomingMovies].slice(0, 10);
       setFeaturedMovie(featuredList[0] ?? null);
     } catch (error) {
       console.error("Error fetching movies", error);

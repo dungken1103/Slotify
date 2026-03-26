@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, Check, Loader2, X } from "lucide-react";
+import { ArrowLeft, Loader2, Sofa, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { bookingService } from "../services/bookingService";
 import { ShowtimeService } from "../services/showtime.service";
@@ -132,19 +132,21 @@ export function BookingPage() {
                   title={`${seat.row}${seat.number} - ${seat.type} - ${formatCurrency(seat.price)}`}
                 >
                   {!seat.isAvailable ? <X className="h-4 w-4" /> :
-                    isSelected ? <Check className="h-4 w-4" /> : 
-                    <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                      {seat.type === 'Couple' && <span className="text-[8px]">👫</span>}
+                    isSelected ? (
+                      <span className="flex items-center gap-1 font-semibold">
+                        {seat.row}{seat.number}
+                      </span>
+                    ) : (
+                    <span className="flex items-center gap-1 font-medium">
+                      {seat.type === 'Couple' && <Sofa className="text-[8px] h-3.5 w-3.5"></Sofa>}
                       {seat.row}{seat.number}
-                    </span>
-                  }
+                      </span>
+                    )}
                   <span className={`absolute -bottom-1 left-0 right-0 h-1 bg-black/20 rounded-b-sm`}></span>
                 </button>
               );
             })}
           </div>
-
-          {/* Legend */}
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
              <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-secondary border border-border"></div> Thường

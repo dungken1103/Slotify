@@ -11,6 +11,7 @@ import type { Cinema } from "../../services/cinema.service";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { cn } from "../../lib/utils";
@@ -38,6 +39,8 @@ export function AdminAuditoriumsPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingAuditorium, setEditingAuditorium] = useState<Auditorium | null>(null);
+    const [confirmDeleteAuditorium, setConfirmDeleteAuditorium] = useState<Auditorium | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<AuditoriumFormValues>({
         resolver: zodResolver(auditoriumSchema),
@@ -127,14 +130,12 @@ export function AdminAuditoriumsPage() {
         }
     });
 
-    const handleDelete = async (auditorium: Auditorium) => {
-        if (!window.confirm(`Xóa phòng "${auditorium.name}"? Hành động này không thể hoàn tác.`)) {
-            return;
-        }
-
+    const handleDelete = async () => {
+        if (!confirmDeleteAuditorium) return;
         try {
+            setIsDeleting(true);
             setError(null);
-            const response = await AuditoriumService.delete(auditorium.id);
+            const response = await AuditoriumService.delete(confirmDeleteAuditorium.id);
             if (!response.succeeded) {
                 setError(response.message || "Không thể xóa phòng chiếu.");
                 return;
@@ -143,6 +144,9 @@ export function AdminAuditoriumsPage() {
             await fetchData();
         } catch (err) {
             setError(getApiErrorMessage(err, "Không thể xóa phòng chiếu."));
+        } finally {
+            setIsDeleting(false);
+            setConfirmDeleteAuditorium(null);
         }
     };
 
@@ -225,7 +229,7 @@ export function AdminAuditoriumsPage() {
                                         <Button variant="ghost" size="icon" className={cn("h-8 w-8", auditorium.isActive ? "text-amber-500" : "text-green-500")} onClick={() => toggleStatus(auditorium)} title={auditorium.isActive ? "Tạm ngưng" : "Kích hoạt"}>
                                             <Power className="h-4 w-4" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(auditorium)} title="Xóa phòng">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setConfirmDeleteAuditorium(auditorium)} title="Xóa phòng">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -266,6 +270,18 @@ export function AdminAuditoriumsPage() {
                     </form>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog
+                open={Boolean(confirmDeleteAuditorium)}
+                title="Xóa phòng chiếu"
+                description={`Xóa phòng "${confirmDeleteAuditorium?.name ?? ""}"? Hành động này không thể hoàn tác.`}
+                confirmText="Xóa phòng"
+                variant="destructive"
+                loading={isDeleting}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmDeleteAuditorium(null);
+                }}
+                onConfirm={handleDelete}
+            />
         </div>
     );
 }
