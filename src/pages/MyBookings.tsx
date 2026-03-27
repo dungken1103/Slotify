@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { bookingService } from "../services/bookingService";
 import type { BookingResponse } from "../types/booking";
-import { Calendar, Clock, MapPin, Ticket, Loader2, ChevronRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Ticket, Loader2, ChevronRight, QrCode } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "../components/ui/button";
 
 export function MyBookingsPage() {
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
@@ -45,19 +46,34 @@ export function MyBookingsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-500' : 
+                        booking.status === 'Paid' || booking.status === 'Confirmed' ? 'bg-green-500/10 text-green-500' : 
                         booking.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' : 
                         'bg-red-500/10 text-red-500'
                       }`}>
-                        {booking.status === 'Confirmed' ? 'Đã xác nhận' : booking.status === 'Pending' ? 'Đang chờ' : booking.status}
+                        {
+                          booking.status === 'Paid' ? 'Đã thanh toán' :
+                          booking.status === 'Confirmed' ? 'Đã xác nhận' : 
+                          booking.status === 'Pending' ? 'Chờ thanh toán' : 
+                          booking.status === 'Cancelled' ? 'Đã hủy' :
+                          booking.status
+                        }
                       </span>
                       <span className="text-xs text-muted-foreground">ID: {booking.id.split('-')[0]}</span>
                     </div>
                     <h2 className="text-xl font-bold">{booking.movieTitle}</h2>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-primary">{formatCurrency(booking.totalAmount)}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(booking.bookingDate).toLocaleDateString()}</p>
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div>
+                      <p className="text-2xl font-black text-primary">{formatCurrency(booking.totalAmount)}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(booking.bookingDate).toLocaleDateString()}</p>
+                    </div>
+                    {(booking.status === 'Pending') && (
+                      <Link to={`/payment/${booking.id}`}>
+                        <Button size="sm" className="gap-2 h-8 text-xs bg-primary hover:bg-primary/90 shadow-md">
+                          <QrCode className="h-3.5 w-3.5" /> Thanh toán / QR
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </div>
 
